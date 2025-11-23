@@ -1,3 +1,5 @@
+#pragma once
+
 #include <stdint.h>
 
 #define PHOTORESISTOR_PIN PORTC3  // ADC3

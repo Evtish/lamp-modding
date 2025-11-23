@@ -1,3 +1,5 @@
+#pragma once
+
 #include "timings.h"
 #include <stdint.h>
 #include <stdbool.h>
