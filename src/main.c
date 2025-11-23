@@ -28,10 +28,31 @@ int main(void) {
     light_mode led_light_mode = WHITE_ON;
     uint16_t brightness_level = 0;
 
-    pwm white_led_pwm = {&DDRB, &OCR1A, WHITE_LED_PIN};
-    pwm yellow_led_pwm = {&DDRB, &OCR1B, YELLOW_LED_PIN};
+    pwm white_led_pwm = {
+        .data_direction_r_p = &DDRB,
+        .out_r_p = &OCR1A,
+        .pin = WHITE_LED_PIN,
+        .changing_smoothly = false,
+        .last_call_time = 0,
+        .start_change_delta = 0
+    };
+    pwm yellow_led_pwm = {
+        .data_direction_r_p = &DDRB,
+        .out_r_p = &OCR1B,
+        .pin = YELLOW_LED_PIN,
+        .changing_smoothly = false,
+        .last_call_time = 0,
+        .start_change_delta = 0
+    };
 
-    button left_button = {&PORTD, &PIND, LEFT_BUTTON_PIN};
+    button left_button = {
+        .port_r_p = &PORTD,
+        .pin_r_p = &PIND,
+        .pin = LEFT_BUTTON_PIN,
+        .was_pressed = false,
+        .last_call_time = 0,
+        .passed_debounce_amount = 0
+    };
 
     //  -------------------------------------------------------------------
     // |                          INITIALIZATION                           |
