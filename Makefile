@@ -12,7 +12,7 @@ ELF_FILE := $(BUILD_DIR)/$(PROGRAM_NAME).elf
 HEX_FILE := $(BUILD_DIR)/$(PROGRAM_NAME).hex
 
 CC := avr-gcc
-CFLAGS := -DF_CPU=16000000UL -mmcu=atmega328p -MMD -MP -Wall -Os -I ./$(INC_DIR)
+CFLAGS := -DF_CPU=16000000UL -mmcu=atmega328p -MMD -MP -Wall -Wextra -pedantic -Os -I ./$(INC_DIR)
 OBJCOPY_FLAGS := -R .eeprom -O ihex
 AVRDUDE_FLAGS := -c arduino -p m328p -P $(USB_PORT)
 

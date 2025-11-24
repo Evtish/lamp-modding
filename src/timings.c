@@ -11,7 +11,7 @@ void timer1_init(void) {
 
     TCCR1B |= (
         (1 << WGM12) | (1 << WGM13) |  // set 10-bit fast PWM mode
-        (1 << CS11)  // set prescaler == 8
+        (1 << CS11)  // set prescaler = 8
     );
 
     ICR1 = TIMER_SIZE;

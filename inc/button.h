@@ -11,11 +11,12 @@
 typedef struct {
     uint32_t last_call_time;
     uint16_t passed_debounce_amount;
-    volatile uint8_t* port_r_p;  // PORTx (pointer to register)
-    volatile uint8_t* pin_r_p;  // PINx (pointer to register)
-    uint8_t pin;  // Pxn
+    volatile uint8_t* port_r;           // PORTx
+    volatile uint8_t* pin_address_r;    // PINx
+    uint8_t pin;                        // Pxn
     bool was_pressed;
 } button;
 
-void button_poll(button* button_p);
-bool button_is_clicked(button* button_p);
+bool button_is_pressed(button *btn);
+void button_poll(button *btn);
+bool button_is_clicked(button *btn);
