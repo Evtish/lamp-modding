@@ -8,6 +8,7 @@
 #include "gpio.h"
 #include "pwm.h"
 #include "adc.h"
+#include "twi.h"
 
 #include "modes.h"
 #include "button.h"
@@ -22,16 +23,19 @@ ISR(ADC_vect) {
 }
 
 ISR(TIMER1_OVF_vect) {
-    timer_overflow_amount_now++;
+    timer_amount_of_overflows++;
 }
 
 ISR(USART_RX_vect) {
     usart_rx_data = UDR0;
     usart_rx_complete = true;
 }
-
 ISR(USART_UDRE_vect) {
     usart_data_register_empty = true;
+}
+
+ISR(TWI_vect) {
+    twi_ready = true;
 }
 
 int main(void) {
@@ -66,26 +70,25 @@ int main(void) {
 
     light_mode led_light_mode = WHITE_ON;
     uint16_t max_brightness_level = PWM_MAX, min_brightness_level = 0;
-    bool button_state = false, prev_button_state = false;
+
+    char datetime[128];
+    bool need_to_read_datetime = false, need_to_transmit_datetime = false;
 
     //  -------------------------------------------------------------------
     // |                          INITIALIZATION                           |
     //  -------------------------------------------------------------------
-    /* --------------- GPIO --------------- */
     gpio_output_init(white_led_pwm.data_direction_r, white_led_pwm.pin);
     gpio_output_init(yellow_led_pwm.data_direction_r, yellow_led_pwm.pin);
-
     gpio_input_init(left_button.port_r, left_button.pin);
 
-    /* --------------- counter & PWM --------------- */
     timer1_init();
 
-    /* --------------- ADC --------------- */
     adc_init();
     adc_set_pin(PHOTORESISTOR_PIN);
 
-    /* --------------- USART --------------- */
     usart_init();
+
+    twi_init();
 
     sei();  // allow interrupts;
 
@@ -93,13 +96,15 @@ int main(void) {
     // |                           PROGRAM LOOP                            |
     //  -------------------------------------------------------------------
     while (true) {
-        /* --------------- transmit data with USART --------------- */
-        button_state = button_is_pressed(&left_button);
-        if (usart_data_register_empty && button_state != prev_button_state) {
-            UDR0 = (uint8_t) ('0' + button_state);
-            prev_button_state = button_state;
-            usart_data_register_empty = false;
+        /* --------------- read data from RTC --------------- */
+        if (need_to_read_datetime && twi_receive(datetime, 6)) {
+            need_to_read_datetime = false;
+            need_to_transmit_datetime = true;
         }
+
+        /* --------------- transmit data with USART --------------- */
+        if (need_to_transmit_datetime && usart_transmit_string(datetime) == 0)
+            need_to_transmit_datetime = false;
 
         /* --------------- receive data with USART --------------- */
         if (usart_rx_complete) {
@@ -118,24 +123,26 @@ int main(void) {
         /* --------------- update button --------------- */
         button_poll(&left_button);
 
-        if (button_is_clicked(&left_button) /*&& !white_led_pwm.change_smoothly && !yellow_led_pwm.change_smoothly*/) {
+        if (button_clicked(&left_button) /*&& !white_led_pwm.change_smoothly && !yellow_led_pwm.change_smoothly*/) {
             led_light_mode = (led_light_mode == WHITE_ON) ? YELLOW_ON : WHITE_ON;
             white_led_pwm.change_smoothly = true;
             yellow_led_pwm.change_smoothly = true;
+
+            need_to_read_datetime = true;
         }
 
         /* --------------- manage light --------------- */
         switch (led_light_mode) {
-            case WHITE_ON:
-                pwm_set(&white_led_pwm, max_brightness_level);  // turn on
-                // pwm_set(&yellow_led_pwm, map(usart_rx_data, 0, UINT8_MAX, 0, PWM_MAX));
-                pwm_set(&yellow_led_pwm, min_brightness_level);  // turn off
-            break;
-            case YELLOW_ON:
-                pwm_set(&white_led_pwm, min_brightness_level);
-                // pwm_set(&yellow_led_pwm, map(usart_rx_data, 0, UINT8_MAX, 0, PWM_MAX));
-                pwm_set(&yellow_led_pwm, max_brightness_level);
-            break;
+        case WHITE_ON:
+            pwm_set(&white_led_pwm, max_brightness_level);  // turn on
+            // pwm_set(&yellow_led_pwm, map(usart_rx_data, 0, UINT8_MAX, 0, PWM_MAX));
+            pwm_set(&yellow_led_pwm, min_brightness_level);  // turn off
+        break;
+        case YELLOW_ON:
+            pwm_set(&white_led_pwm, min_brightness_level);
+            // pwm_set(&yellow_led_pwm, map(usart_rx_data, 0, UINT8_MAX, 0, PWM_MAX));
+            pwm_set(&yellow_led_pwm, max_brightness_level);
+        break;
         }
     }
     

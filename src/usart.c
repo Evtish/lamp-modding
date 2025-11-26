@@ -25,10 +25,30 @@ void usart_init(void) {
     );
 }
 
-// void usart_transmit(const uint8_t data) {
-//     usart_data_register_empty = false;
-//     UDR0 = data;
-// }
+// returns the number of bytes left to transmit
+size_t usart_transmit_byte(const uint8_t data) {
+    if (usart_data_register_empty) {
+        UDR0 = data;
+        usart_data_register_empty = false;
+        return 0;
+    }
+    return 1;
+}
+
+// returns the number of bytes left to transmit
+size_t usart_transmit_string(const char *data) {
+    static size_t i = 0;
+    size_t data_len = strlen(data);
+
+    if (usart_transmit_byte(data[i]) == 0)
+        i++;
+
+    if (i >= data_len) {
+        i = 0;
+        return 0;
+    }
+    return data_len - i;
+}
 
 // uint8_t usart_receive(void) {
 //     usart_rx_data = false;

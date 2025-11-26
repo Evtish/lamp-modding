@@ -27,7 +27,7 @@ void button_poll(button *btn) {
     }
 }
 
-bool button_is_clicked(button *btn) {
+bool button_clicked(button *btn) {
     if (btn->passed_debounce_amount >= BTN_DEBOUNCE_AMOUNT_TO_PASS) {
         btn->passed_debounce_amount = 0;
         return true;

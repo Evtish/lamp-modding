@@ -19,4 +19,4 @@ typedef struct {
 
 bool button_is_pressed(button *btn);
 void button_poll(button *btn);
-bool button_is_clicked(button *btn);
+bool button_clicked(button *btn);

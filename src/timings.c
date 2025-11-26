@@ -1,6 +1,6 @@
 #include "timings.h"
 
-volatile uint32_t timer_overflow_amount_now = 0;
+volatile uint32_t timer_amount_of_overflows = 0;
 
 void timer1_init(void) {
     TCCR1A |= (
@@ -24,5 +24,5 @@ uint32_t ticks_to_ms(const uint32_t ticks) {
 }
 
 uint32_t get_time_ms(void) {
-    return ticks_to_ms(TCNT1 + timer_overflow_amount_now * TIMER_SIZE);
+    return ticks_to_ms(TCNT1 + timer_amount_of_overflows * TIMER_SIZE);
 }
