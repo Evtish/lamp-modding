@@ -1,7 +1,7 @@
 #include "usart.h"
 
 #define BAUD_RATE 9600U
-#define MY_UBRR_VALUE (F_CPU / 16 / BAUD_RATE - 1)
+#define UBRR_VALUE (F_CPU / 16 / BAUD_RATE - 1)
 
 volatile uint8_t usart_rx_data = 0;
 volatile bool usart_rx_complete = false;
@@ -9,12 +9,11 @@ volatile bool usart_data_register_empty = false;
 
 void usart_init(void) {
     // set baud rate
-    UBRR0H = (MY_UBRR_VALUE >> 8);
-    UBRR0L = MY_UBRR_VALUE;
+    UBRR0H = (UBRR_VALUE >> 8);
+    UBRR0L = UBRR_VALUE;
     
     UCSR0B |= (
         (1 << RXCIE0) | // enable RX complete interrupt
-        (1 << UDRIE0) | // enable data register empty interrupt
         (1 << TXEN0) |  // enable transmitter
         (1 << RXEN0)    // enable receiver
     );
@@ -27,8 +26,10 @@ void usart_init(void) {
 
 // returns the number of bytes left to transmit
 size_t usart_transmit_byte(const uint8_t data) {
+    UCSR0B |= (1 << UDRIE0); // enable data register empty interrupt
     if (usart_data_register_empty) {
         UDR0 = data;
+        UCSR0B &= ~(1 << UDRIE0); // disable data register empty interrupt
         usart_data_register_empty = false;
         return 0;
     }
@@ -39,7 +40,7 @@ size_t usart_transmit_byte(const uint8_t data) {
 size_t usart_transmit_string(const char *data) {
     static size_t i = 0;
     size_t data_len = strlen(data);
-
+    
     if (usart_transmit_byte(data[i]) == 0)
         i++;
 

@@ -4,6 +4,10 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
+
 #include "usart.h"
 #include "gpio.h"
 #include "pwm.h"
@@ -14,6 +18,8 @@
 #include "button.h"
 #include "timings.h"
 #include "utils.h"
+
+#define DATETIME_BUFFER_SIZE 7
 
 //  -------------------------------------------------------------------
 // |                            INTERRUPTS                             |
@@ -71,7 +77,7 @@ int main(void) {
     light_mode led_light_mode = WHITE_ON;
     uint16_t max_brightness_level = PWM_MAX, min_brightness_level = 0;
 
-    char datetime[128];
+    char datetime[DATETIME_BUFFER_SIZE];
     bool need_to_read_datetime = false, need_to_transmit_datetime = false;
 
     //  -------------------------------------------------------------------
@@ -97,7 +103,7 @@ int main(void) {
     //  -------------------------------------------------------------------
     while (true) {
         /* --------------- read data from RTC --------------- */
-        if (need_to_read_datetime && twi_receive(datetime, 6)) {
+        if (need_to_read_datetime && twi_receive_string(datetime, 6)) {
             need_to_read_datetime = false;
             need_to_transmit_datetime = true;
         }
@@ -128,6 +134,7 @@ int main(void) {
             white_led_pwm.change_smoothly = true;
             yellow_led_pwm.change_smoothly = true;
 
+            memset(datetime, '\0', DATETIME_BUFFER_SIZE);
             need_to_read_datetime = true;
         }
 

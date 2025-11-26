@@ -2,6 +2,9 @@
 
 #define TWSR_MASK 0xF8
 
+#define SCL_FREQUENCY_HZ 400000UL
+#define TWBR_VALUE ((F_CPU / SCL_FREQUENCY_HZ - 16) / 2)
+
 #define SLAVE_ADDRESS 0b1101000 // DS3231
 // #define SLA_W (SLAVE_ADDRESS << 1)
 #define SLA_R ((SLAVE_ADDRESS << 1) | 1)
@@ -11,12 +14,12 @@
 #define CODE_RECEIVE_DATA_ACK   0x50
 #define CODE_RECEIVE_DATA_NACK  0x58
 
-// #define ERROR_MESSAGE "TWI: failed to receive data"
+// #define ERROR_MESSAGE "twierr"
 
 volatile bool twi_ready = false;
 
 void twi_init(void) {
-    TWBR = 12; // SCL freq = 400 kHz
+    TWBR = TWBR_VALUE;
 
     TWCR |= (
         (1 << TWEN) |   // enable TWI
@@ -26,15 +29,20 @@ void twi_init(void) {
 }
 
 // writing a one to TWINT clears the flag (the TWI will not start any operation as long as the TWINT bit in TWCR is set)
-void twi_start(void) { TWCR |= (1 << TWINT) | (1 << TWSTA); }
+void twi_start(void) {
+    TWCR |= (1 << TWSTA) | (1 << TWINT);
+}
 
-void twi_stop(void) { TWCR |= (1 << TWINT) | (1 << TWSTO); }
+void twi_stop(void) {
+    TWCR |= (1 << TWSTO) | (1 << TWINT);
+}
 
 uint8_t twi_status_code(void) { return (TWSR & TWSR_MASK); }
 
 // returns if data was successfully received
-bool twi_receive(char *buf, const uint8_t amount_of_bytes) {
+bool twi_receive_string(char *buf, const uint8_t amount_of_bytes) {
     static uint8_t step = 0, i = 0;
+    uint8_t code = 0;
 
     switch (step) {
     case 0:
@@ -44,50 +52,62 @@ bool twi_receive(char *buf, const uint8_t amount_of_bytes) {
 
     case 1:
         if (twi_ready) {
-            if (twi_status_code() == CODE_START) {
+            code = twi_status_code();
+            buf[step - 1] = '0' + code;
+            if (code == CODE_START) {
+                TWCR &= ~(1 << TWSTA);
                 TWDR = SLA_R;
+                TWCR |= (1 << TWINT);
                 step++;
             }
             else {
+                // buf[0] = '0' + step;
                 step = 0;
-                buf[0] = '0' + step;
+                twi_stop();
             }
-            TWCR |= (1 << TWINT);
             twi_ready = false;
         }
     break;
     
     case 2:
         if (twi_ready) {
-            if (twi_status_code() == CODE_SLA_R_ACK) {
+            code = twi_status_code();
+            buf[step - 1] = '0' + code;
+            if (code == CODE_SLA_R_ACK) {
                 step++;
+                // if (amount_of_bytes > 1) TWCR |= (1 << TWEA); // enable acknowledge bit
+                TWCR |= (1 << TWINT);
             }
             else {
+                // buf[0] = '0' + step;
                 step = 0;
-                buf[0] = '0' + step;
+                twi_stop();
             }
-            TWCR |= (1 << TWINT);
             twi_ready = false;
         }
     break;
 
     case 3:
         if (twi_ready) {
-            if (twi_status_code() == CODE_RECEIVE_DATA_ACK) {
-                buf[i] = '0' + TWDR;
-                i++;
+            code = twi_status_code();
+            buf[step - 1] = '0' + code;
+            if (code == CODE_RECEIVE_DATA_ACK) {
+                // buf[i++] = '0' + TWDR;
                 if (i >= amount_of_bytes - 1) TWCR &= ~(1 << TWEA);
+                TWCR |= (1 << TWINT);
             }
-            else if (twi_status_code() == CODE_RECEIVE_DATA_NACK) {
-                buf[i] = '0' + TWDR;
+            else if (code == CODE_RECEIVE_DATA_NACK) {
+                // buf[i] = '0' + TWDR;
                 i = 0, step = 0;
+                TWCR |= (1 << TWEA);
                 twi_stop();
             }
             else {
+                // buf[0] = '0' + step;
                 i = 0, step = 0;
-                buf[0] = '0' + step;
+                // TWCR &= ~(1 << TWEA); // disable acknowledge bit
+                twi_stop();
             }
-            TWCR |= (1 << TWINT);
             twi_ready = false;
         }
     break;
@@ -95,3 +115,66 @@ bool twi_receive(char *buf, const uint8_t amount_of_bytes) {
 
     return (step == 0);
 }
+
+// uint8_t twi_receive_byte() {
+//     static uint8_t step = 0;
+//     uint8_t res = 0;
+
+//     switch (step) {
+//     case 0:
+//         twi_start();
+//         step++;
+//     break;
+
+//     case 1:
+//         if (twi_ready) {
+//             if (twi_status_code() == CODE_START) {
+//                 TWDR = SLA_R;
+//                 step++;
+//             }
+//             else {
+//                 res = '0' + step;
+//                 step = 0;
+//                 twi_stop();
+//             }
+//             TWCR |= (1 << TWINT);
+//             twi_ready = false;
+//         }
+//     break;
+    
+//     case 2:
+//         if (twi_ready) {
+//             if (twi_status_code() == CODE_SLA_R_ACK) {
+//                 step++;
+//             }
+//             else {
+//                 res = '0' + step;
+//                 step = 0;
+//                 twi_stop();
+//             }
+//             TWCR |= (1 << TWINT);
+//             twi_ready = false;
+//         }
+//     break;
+
+//     case 3:
+//         if (twi_ready) {
+//             res = '0' + twi_status_code();
+//             if (twi_status_code() == CODE_RECEIVE_DATA_NACK) {
+//                 // res = '0' + TWDR;
+//                 step = 0;
+//                 twi_stop();
+//             }
+//             else {
+//                 // res = '0' + step;
+//                 step = 0;
+//                 twi_stop();
+//             }
+//             TWCR |= (1 << TWINT);
+//             twi_ready = false;
+//         }
+//     break;
+//     }
+
+//     return ((step == 0) ? res : 0);
+// }
