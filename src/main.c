@@ -103,7 +103,7 @@ int main(void) {
     //  -------------------------------------------------------------------
     while (true) {
         /* --------------- read data from RTC --------------- */
-        if (need_to_read_datetime && twi_receive_string(datetime, 6)) {
+        if (need_to_read_datetime && twi_receive_string(datetime, 0x00, 6)) {
             need_to_read_datetime = false;
             need_to_transmit_datetime = true;
         }
@@ -135,6 +135,7 @@ int main(void) {
             yellow_led_pwm.change_smoothly = true;
 
             memset(datetime, '\0', DATETIME_BUFFER_SIZE);
+            twi_ready = true;
             need_to_read_datetime = true;
         }
 
