@@ -2,7 +2,7 @@
 
 #define TWSR_MASK 0xF8
 
-#define SCL_FREQUENCY_HZ    400000UL
+#define SCL_FREQUENCY_HZ    100000UL
 #define TWBR_VALUE          ((F_CPU / SCL_FREQUENCY_HZ - 16) / 2)
 
 #define SLAVE_ADDRESS   0b1101000 // DS3231
@@ -56,7 +56,7 @@ bool twi_receive_string(char *buf, const uint8_t start_address, const uint8_t am
 
         case 1:
             code = twi_status_code();
-            buf[step - 1] = '0' + code;
+            // buf[step - 1] = '0' + code;
             // buf[0] = '0' + 1;
             if (code == CODE_START) {
                 TWDR = SLA_W;
@@ -64,9 +64,9 @@ bool twi_receive_string(char *buf, const uint8_t start_address, const uint8_t am
                 step++;
             }
             else {
-                // buf[step - 1] = '0' + code;
-                // buf[0] = '0' + step;
-                // strcpy(buf, ERROR_MESSAGE);
+                strcpy(buf, ERROR_MESSAGE);
+                buf[step - 1] = code;
+                // buf[0] = step;
                 step = 0;
                 twi_stop();
             }
@@ -75,7 +75,7 @@ bool twi_receive_string(char *buf, const uint8_t start_address, const uint8_t am
         
         case 2:
             code = twi_status_code();
-            buf[step - 1] = '0' + code;
+            // buf[step - 1] = '0' + code;
             // buf[0]++;
             if (code == CODE_SLA_W_ACK) {
                 step++;
@@ -84,9 +84,9 @@ bool twi_receive_string(char *buf, const uint8_t start_address, const uint8_t am
                 TWCR |= (1 << TWINT);
             }
             else {
-                // buf[step - 1] = '0' + code;
-                // buf[0] = '0' + step;
-                // strcpy(buf, ERROR_MESSAGE);
+                strcpy(buf, ERROR_MESSAGE);
+                buf[step - 1] = code;
+                // buf[0] = step;
                 step = 0;
                 twi_stop();
             }
@@ -94,7 +94,7 @@ bool twi_receive_string(char *buf, const uint8_t start_address, const uint8_t am
 
         case 3:
             code = twi_status_code();
-            buf[step - 1] = '0' + code;
+            // buf[step - 1] = '0' + code;
             // buf[0]++;
             if (code == CODE_TRANSMIT_DATA_ACK) {
                 twi_start();
@@ -102,9 +102,9 @@ bool twi_receive_string(char *buf, const uint8_t start_address, const uint8_t am
                 TWCR |= (1 << TWINT);
             }
             else {
-                // buf[step - 1] = '0' + code;
-                // buf[0] = '0' + step;
-                // strcpy(buf, ERROR_MESSAGE);
+                strcpy(buf, ERROR_MESSAGE);
+                buf[step - 1] = code;
+                // buf[0] = step;
                 step = 0;
                 // TWCR &= ~(1 << TWEA); // disable acknowledge bit
                 twi_stop();
@@ -113,7 +113,7 @@ bool twi_receive_string(char *buf, const uint8_t start_address, const uint8_t am
 
         case 4:
             code = twi_status_code();
-            buf[step - 1] = '0' + code;
+            // buf[step - 1] = '0' + code;
             // buf[0]++;
             if (code == CODE_REPEATED_START) {
                 TWDR = SLA_R;
@@ -121,9 +121,9 @@ bool twi_receive_string(char *buf, const uint8_t start_address, const uint8_t am
                 step++;
             }
             else {
-                // buf[step - 1] = '0' + code;
-                // buf[0] = '0' + step;
-                // strcpy(buf, ERROR_MESSAGE);
+                strcpy(buf, ERROR_MESSAGE);
+                buf[step - 1] = code;
+                // buf[0] = step;
                 step = 0;
                 twi_stop();
             }
@@ -132,17 +132,18 @@ bool twi_receive_string(char *buf, const uint8_t start_address, const uint8_t am
 
         case 5:
             code = twi_status_code();
-            buf[step - 1] = '0' + code;
+            // buf[step - 1] = '0' + code;
             // buf[0]++;
             if (code == CODE_SLA_R_ACK) {
                 step++;
                 // if (amount_of_bytes > 1) TWCR |= (1 << TWEA); // enable acknowledge bit
+                if (i >= amount_of_bytes - 1) TWCR &= ~(1 << TWEA);
                 TWCR |= (1 << TWINT);
             }
             else {
-                // buf[step - 1] = '0' + code;
-                // buf[0] = '0' + step;
-                // strcpy(buf, ERROR_MESSAGE);
+                strcpy(buf, ERROR_MESSAGE);
+                buf[step - 1] = code;
+                // buf[0] = step;
                 step = 0;
                 twi_stop();
             }
@@ -152,21 +153,21 @@ bool twi_receive_string(char *buf, const uint8_t start_address, const uint8_t am
             code = twi_status_code();
             // buf[step - 1] = '0' + code;
             if (code == CODE_RECEIVE_DATA_ACK) {
-                buf[i++] = '0' + TWDR;
+                buf[i++] = TWDR;
                 if (i >= amount_of_bytes - 1) TWCR &= ~(1 << TWEA);
                 TWCR |= (1 << TWINT);
             }
             else if (code == CODE_RECEIVE_DATA_NACK) {
-                buf[i] = '0' + TWDR;
+                buf[i] = TWDR;
                 i = 0, step = 0;
                 TWCR |= (1 << TWEA);
                 twi_stop();
             }
             else {
-                buf[step - 1] = '0' + code;
+                strcpy(buf, ERROR_MESSAGE);
+                buf[step - 1] = code;
                 // buf[0]++;
-                // buf[0] = '0' + step;
-                // strcpy(buf, ERROR_MESSAGE);
+                // buf[0] = step;
                 i = 0, step = 0;
                 // TWCR &= ~(1 << TWEA); // disable acknowledge bit
                 twi_stop();

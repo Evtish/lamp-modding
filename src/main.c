@@ -19,7 +19,7 @@
 #include "timings.h"
 #include "utils.h"
 
-#define DATETIME_BUFFER_SIZE 7
+#define DATETIME_BUFFER_SIZE 32
 
 //  -------------------------------------------------------------------
 // |                            INTERRUPTS                             |
@@ -103,7 +103,7 @@ int main(void) {
     //  -------------------------------------------------------------------
     while (true) {
         /* --------------- read data from RTC --------------- */
-        if (need_to_read_datetime && twi_receive_string(datetime, 0x00, 6)) {
+        if (need_to_read_datetime && twi_receive_string(datetime, 0x00, 1)) {
             need_to_read_datetime = false;
             need_to_transmit_datetime = true;
         }
