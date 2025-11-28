@@ -19,7 +19,7 @@
 #include "timings.h"
 #include "utils.h"
 
-#define DATETIME_BUFFER_SIZE 32
+#define DATETIME_BUFFER_SIZE 6
 
 //  -------------------------------------------------------------------
 // |                            INTERRUPTS                             |
@@ -77,7 +77,8 @@ int main(void) {
     light_mode led_light_mode = WHITE_ON;
     uint16_t max_brightness_level = PWM_MAX, min_brightness_level = 0;
 
-    char datetime[DATETIME_BUFFER_SIZE];
+    char datetime[DATETIME_BUFFER_SIZE], formatted_seconds[3];
+    // datetime[DATETIME_BUFFER_SIZE - 1] = '\0';
     bool need_to_read_datetime = false, need_to_transmit_datetime = false;
 
     //  -------------------------------------------------------------------
@@ -103,13 +104,17 @@ int main(void) {
     //  -------------------------------------------------------------------
     while (true) {
         /* --------------- read data from RTC --------------- */
-        if (need_to_read_datetime && twi_receive_string(datetime, 0x00, 1)) {
+        if (need_to_read_datetime && twi_receive_string(datetime, 0x00, 6)) {
+            formatted_seconds[0] = '0' + (datetime[0] >> 4);
+            formatted_seconds[1] = '0' + (datetime[0] & 0x0F);
+            formatted_seconds[2] = '\0';
+
             need_to_read_datetime = false;
             need_to_transmit_datetime = true;
         }
 
         /* --------------- transmit data with USART --------------- */
-        if (need_to_transmit_datetime && usart_transmit_string(datetime) == 0)
+        if (need_to_transmit_datetime && usart_transmit_string(formatted_seconds) == 0)
             need_to_transmit_datetime = false;
 
         /* --------------- receive data with USART --------------- */
@@ -134,7 +139,7 @@ int main(void) {
             white_led_pwm.change_smoothly = true;
             yellow_led_pwm.change_smoothly = true;
 
-            memset(datetime, '\0', DATETIME_BUFFER_SIZE);
+            // memset(datetime, '\0', DATETIME_BUFFER_SIZE);
             twi_ready = true;
             need_to_read_datetime = true;
         }

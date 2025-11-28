@@ -17,7 +17,7 @@
 #define CODE_RECEIVE_DATA_ACK   0x50
 #define CODE_RECEIVE_DATA_NACK  0x58
 
-#define ERROR_MESSAGE "vobla"
+// #define ERROR_MESSAGE "voblaa"
 
 volatile bool twi_ready = true;
 
@@ -64,8 +64,8 @@ bool twi_receive_string(char *buf, const uint8_t start_address, const uint8_t am
                 step++;
             }
             else {
-                strcpy(buf, ERROR_MESSAGE);
-                buf[step - 1] = code;
+                // strcpy(buf, ERROR_MESSAGE);
+                // buf[0] = code;
                 // buf[0] = step;
                 step = 0;
                 twi_stop();
@@ -84,8 +84,8 @@ bool twi_receive_string(char *buf, const uint8_t start_address, const uint8_t am
                 TWCR |= (1 << TWINT);
             }
             else {
-                strcpy(buf, ERROR_MESSAGE);
-                buf[step - 1] = code;
+                // strcpy(buf, ERROR_MESSAGE);
+                // buf[0] = code;
                 // buf[0] = step;
                 step = 0;
                 twi_stop();
@@ -102,8 +102,8 @@ bool twi_receive_string(char *buf, const uint8_t start_address, const uint8_t am
                 TWCR |= (1 << TWINT);
             }
             else {
-                strcpy(buf, ERROR_MESSAGE);
-                buf[step - 1] = code;
+                // strcpy(buf, ERROR_MESSAGE);
+                // buf[0] = code;
                 // buf[0] = step;
                 step = 0;
                 // TWCR &= ~(1 << TWEA); // disable acknowledge bit
@@ -121,8 +121,8 @@ bool twi_receive_string(char *buf, const uint8_t start_address, const uint8_t am
                 step++;
             }
             else {
-                strcpy(buf, ERROR_MESSAGE);
-                buf[step - 1] = code;
+                // strcpy(buf, ERROR_MESSAGE);
+                // buf[0] = code;
                 // buf[0] = step;
                 step = 0;
                 twi_stop();
@@ -141,8 +141,8 @@ bool twi_receive_string(char *buf, const uint8_t start_address, const uint8_t am
                 TWCR |= (1 << TWINT);
             }
             else {
-                strcpy(buf, ERROR_MESSAGE);
-                buf[step - 1] = code;
+                // strcpy(buf, ERROR_MESSAGE);
+                // buf[0] = code;
                 // buf[0] = step;
                 step = 0;
                 twi_stop();
@@ -164,8 +164,8 @@ bool twi_receive_string(char *buf, const uint8_t start_address, const uint8_t am
                 twi_stop();
             }
             else {
-                strcpy(buf, ERROR_MESSAGE);
-                buf[step - 1] = code;
+                // strcpy(buf, ERROR_MESSAGE);
+                // buf[0] = code;
                 // buf[0]++;
                 // buf[0] = step;
                 i = 0, step = 0;
