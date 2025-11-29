@@ -107,7 +107,7 @@ int main(void) {
     while (true) {
         /* --------------- read data from RTC --------------- */
         if (need_to_read_datetime && twi_ready) {
-            int16_t twi_exit_code = twi_receive_string(raw_datetime, 0x00, 6);
+            int16_t twi_exit_code = twi_receive_bytes(raw_datetime, 0x00, 6);
             switch (twi_exit_code) {
                 // in progress
                 case -1: break;

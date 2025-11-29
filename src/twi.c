@@ -67,7 +67,7 @@ void twi_conversation_error(int16_t *exit_code, uint8_t *step, const uint8_t sta
 -1: in progress
 0:  successfully received
 1:  error (status code + number of step)*/
-int16_t twi_receive_string(char *buf, const uint8_t start_address, const uint8_t amount_of_bytes) {
+int16_t twi_receive_bytes(char *buf, const uint8_t start_address, const uint8_t amount_of_bytes) {
     if (amount_of_bytes == 0) return 0;
 
     static uint8_t step = 0, i = 0;
