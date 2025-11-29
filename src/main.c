@@ -6,7 +6,8 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include <string.h>
+// #include <string.h>
+#include <stdio.h>
 
 #include "usart.h"
 #include "gpio.h"
@@ -19,7 +20,8 @@
 #include "timings.h"
 #include "utils.h"
 
-#define DATETIME_BUFFER_SIZE 6
+#define RTC_BUFFER_SIZE 6
+#define TWI_ERROR_MESSAGE "вобла"
 
 //  -------------------------------------------------------------------
 // |                            INTERRUPTS                             |
@@ -77,8 +79,8 @@ int main(void) {
     light_mode led_light_mode = WHITE_ON;
     uint16_t max_brightness_level = PWM_MAX, min_brightness_level = 0;
 
-    char datetime[DATETIME_BUFFER_SIZE], formatted_seconds[3];
-    // datetime[DATETIME_BUFFER_SIZE - 1] = '\0';
+    char raw_datetime[RTC_BUFFER_SIZE], formatted_seconds[16];
+    // raw_datetime[RTC_BUFFER_SIZE - 1] = '\0';
     bool need_to_read_datetime = false, need_to_transmit_datetime = false;
 
     //  -------------------------------------------------------------------
@@ -104,17 +106,35 @@ int main(void) {
     //  -------------------------------------------------------------------
     while (true) {
         /* --------------- read data from RTC --------------- */
-        if (need_to_read_datetime && twi_receive_string(datetime, 0x00, 6)) {
-            formatted_seconds[0] = '0' + (datetime[0] >> 4);
-            formatted_seconds[1] = '0' + (datetime[0] & 0x0F);
-            formatted_seconds[2] = '\0';
+        if (need_to_read_datetime && twi_ready) {
+            int16_t twi_exit_code = twi_receive_string(raw_datetime, 0x00, 6);
+            switch (twi_exit_code) {
+                // in progress
+                case -1: break;
+                // success
+                case 0:
+                    formatted_seconds[0] = '0' + (raw_datetime[0] >> 4);
+                    formatted_seconds[1] = '0' + (raw_datetime[0] & 0x0F);
+                    formatted_seconds[2] = '\0';
 
-            need_to_read_datetime = false;
-            need_to_transmit_datetime = true;
+                    need_to_read_datetime = false;
+                    need_to_transmit_datetime = true;
+                break;
+                // error
+                default:
+                    // strcpy(formatted_seconds, "ZV");
+                    // formatted_seconds[0] = 'e';
+                    sprintf(formatted_seconds, "%s%d", TWI_ERROR_MESSAGE, twi_exit_code);
+
+                    need_to_read_datetime = false;
+                    need_to_transmit_datetime = true;
+                break;
+            }
+            twi_ready = false;
         }
 
         /* --------------- transmit data with USART --------------- */
-        if (need_to_transmit_datetime && usart_transmit_string(formatted_seconds) == 0)
+        if (need_to_transmit_datetime && usart_transmit_string(formatted_seconds))
             need_to_transmit_datetime = false;
 
         /* --------------- receive data with USART --------------- */
@@ -139,23 +159,23 @@ int main(void) {
             white_led_pwm.change_smoothly = true;
             yellow_led_pwm.change_smoothly = true;
 
-            // memset(datetime, '\0', DATETIME_BUFFER_SIZE);
+            // memset(raw_datetime, '\0', RTC_BUFFER_SIZE);
             twi_ready = true;
             need_to_read_datetime = true;
         }
 
         /* --------------- manage light --------------- */
         switch (led_light_mode) {
-        case WHITE_ON:
-            pwm_set(&white_led_pwm, max_brightness_level);  // turn on
-            // pwm_set(&yellow_led_pwm, map(usart_rx_data, 0, UINT8_MAX, 0, PWM_MAX));
-            pwm_set(&yellow_led_pwm, min_brightness_level);  // turn off
-        break;
-        case YELLOW_ON:
-            pwm_set(&white_led_pwm, min_brightness_level);
-            // pwm_set(&yellow_led_pwm, map(usart_rx_data, 0, UINT8_MAX, 0, PWM_MAX));
-            pwm_set(&yellow_led_pwm, max_brightness_level);
-        break;
+            case WHITE_ON:
+                pwm_set(&white_led_pwm, max_brightness_level);  // turn on
+                // pwm_set(&yellow_led_pwm, map(usart_rx_data, 0, UINT8_MAX, 0, PWM_MAX));
+                pwm_set(&yellow_led_pwm, min_brightness_level);  // turn off
+            break;
+            case YELLOW_ON:
+                pwm_set(&white_led_pwm, min_brightness_level);
+                // pwm_set(&yellow_led_pwm, map(usart_rx_data, 0, UINT8_MAX, 0, PWM_MAX));
+                pwm_set(&yellow_led_pwm, max_brightness_level);
+            break;
         }
     }
     

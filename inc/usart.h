@@ -11,6 +11,6 @@ extern volatile bool usart_rx_complete;
 extern volatile bool usart_data_register_empty;
 
 void usart_init(void);
-size_t usart_transmit_byte(const uint8_t data);
-size_t usart_transmit_string(const char *data);
+bool usart_transmit_byte(const uint8_t data);
+bool usart_transmit_string(const char *data);
 // uint8_t usart_receive(void);

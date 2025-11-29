@@ -24,31 +24,31 @@ void usart_init(void) {
     );
 }
 
-// returns the number of bytes left to transmit
-size_t usart_transmit_byte(const uint8_t data) {
+// returns if the data was successfully transmitted
+bool usart_transmit_byte(const uint8_t data) {
     UCSR0B |= (1 << UDRIE0); // enable data register empty interrupt
     if (usart_data_register_empty) {
         UDR0 = data;
         UCSR0B &= ~(1 << UDRIE0); // disable data register empty interrupt
         usart_data_register_empty = false;
-        return 0;
+        return true;
     }
-    return 1;
+    return false;
 }
 
-// returns the number of bytes left to transmit
-size_t usart_transmit_string(const char *data) {
+// returns if the data was successfully transmitted
+bool usart_transmit_string(const char *data) {
     static size_t i = 0;
     size_t data_len = strlen(data);
     
-    if (usart_transmit_byte(data[i]) == 0)
+    if (usart_transmit_byte(data[i]))
         i++;
 
     if (i >= data_len) {
         i = 0;
-        return 0;
+        return true;
     }
-    return data_len - i;
+    return false;
 }
 
 // uint8_t usart_receive(void) {
