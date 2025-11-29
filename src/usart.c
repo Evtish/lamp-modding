@@ -3,7 +3,6 @@
 #define BAUD_RATE 9600U
 #define UBRR_VALUE (F_CPU / 16 / BAUD_RATE - 1)
 
-volatile uint8_t usart_rx_data = 0;
 volatile bool usart_rx_complete = false;
 volatile bool usart_data_register_empty = false;
 
@@ -50,8 +49,3 @@ bool usart_transmit_string(const char *data) {
     }
     return false;
 }
-
-// uint8_t usart_receive(void) {
-//     usart_rx_data = false;
-//     return UDR0;
-// }

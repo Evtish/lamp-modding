@@ -6,7 +6,6 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-// #include <string.h>
 #include <stdio.h>
 
 #include "usart.h"
@@ -35,7 +34,6 @@ ISR(TIMER1_OVF_vect) {
 }
 
 ISR(USART_RX_vect) {
-    usart_rx_data = UDR0;
     usart_rx_complete = true;
 }
 ISR(USART_UDRE_vect) {
@@ -80,7 +78,6 @@ int main(void) {
     uint16_t max_brightness_level = PWM_MAX, min_brightness_level = 0;
 
     char raw_datetime[RTC_BUFFER_SIZE], formatted_seconds[16];
-    // raw_datetime[RTC_BUFFER_SIZE - 1] = '\0';
     bool need_to_read_datetime = false, need_to_transmit_datetime = false;
 
     //  -------------------------------------------------------------------
@@ -122,8 +119,6 @@ int main(void) {
                 break;
                 // error
                 default:
-                    // strcpy(formatted_seconds, "ZV");
-                    // formatted_seconds[0] = 'e';
                     sprintf(formatted_seconds, "%s%d", TWI_ERROR_MESSAGE, twi_exit_code);
 
                     need_to_read_datetime = false;
@@ -139,9 +134,7 @@ int main(void) {
 
         /* --------------- receive data with USART --------------- */
         if (usart_rx_complete) {
-            min_brightness_level = map(usart_rx_data, 0, UINT8_MAX, 0, PWM_MAX);
-            // yellow_led_pwm.change_smoothly = true;
-            // *(yellow_led_pwm.output_compare_r) = map(usart_rx_data, 0, UINT8_MAX, 0, PWM_MAX);
+            min_brightness_level = map(UDR0, 0, UINT8_MAX, 0, PWM_MAX);
             usart_rx_complete = false;
         }
 
@@ -159,7 +152,6 @@ int main(void) {
             white_led_pwm.change_smoothly = true;
             yellow_led_pwm.change_smoothly = true;
 
-            // memset(raw_datetime, '\0', RTC_BUFFER_SIZE);
             twi_ready = true;
             need_to_read_datetime = true;
         }
@@ -168,12 +160,10 @@ int main(void) {
         switch (led_light_mode) {
             case WHITE_ON:
                 pwm_set(&white_led_pwm, max_brightness_level);  // turn on
-                // pwm_set(&yellow_led_pwm, map(usart_rx_data, 0, UINT8_MAX, 0, PWM_MAX));
                 pwm_set(&yellow_led_pwm, min_brightness_level);  // turn off
             break;
             case YELLOW_ON:
                 pwm_set(&white_led_pwm, min_brightness_level);
-                // pwm_set(&yellow_led_pwm, map(usart_rx_data, 0, UINT8_MAX, 0, PWM_MAX));
                 pwm_set(&yellow_led_pwm, max_brightness_level);
             break;
         }
