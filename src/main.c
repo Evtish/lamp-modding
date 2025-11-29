@@ -1,6 +1,4 @@
-//  -------------------------------------------------------------------
-// |                           HEADER FILES                            |
-//  -------------------------------------------------------------------
+/* ------------------------------ HEADER FILES ------------------------------ */
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
@@ -19,12 +17,11 @@
 #include "timings.h"
 #include "utils.h"
 
+/* ------------------------------ DEFINES ------------------------------ */
 #define RTC_BUFFER_SIZE 6
 #define TWI_ERROR_MESSAGE "вобла"
 
-//  -------------------------------------------------------------------
-// |                            INTERRUPTS                             |
-//  -------------------------------------------------------------------
+/* ------------------------------ INTERRUPTS ------------------------------ */
 ISR(ADC_vect) {
     adc_complete = true;
 }
@@ -45,9 +42,7 @@ ISR(TWI_vect) {
 }
 
 int main(void) {
-    //  -------------------------------------------------------------------
-    // |                         LOCAL VARIABLES                           |
-    //  -------------------------------------------------------------------
+    /* ------------------------------ LOCAL VARIABLES ------------------------------ */
     pwm white_led_pwm = {
         .data_direction_r = &DDRB,
         .output_compare_r = &OCR1A,
@@ -80,9 +75,7 @@ int main(void) {
     char raw_datetime[RTC_BUFFER_SIZE], formatted_seconds[16];
     bool need_to_read_datetime = false, need_to_transmit_datetime = false;
 
-    //  -------------------------------------------------------------------
-    // |                          INITIALIZATION                           |
-    //  -------------------------------------------------------------------
+    /* ------------------------------ INITIALIZATION ------------------------------ */
     gpio_output_init(white_led_pwm.data_direction_r, white_led_pwm.pin);
     gpio_output_init(yellow_led_pwm.data_direction_r, yellow_led_pwm.pin);
     gpio_input_init(left_button.port_r, left_button.pin);
@@ -98,11 +91,9 @@ int main(void) {
 
     sei();  // allow interrupts;
 
-    //  -------------------------------------------------------------------
-    // |                           PROGRAM LOOP                            |
-    //  -------------------------------------------------------------------
+    /* ------------------------------ PROGRAM LOOP ------------------------------ */
     while (true) {
-        /* --------------- read data from RTC --------------- */
+        // receive data from RTC
         if (need_to_read_datetime && twi_ready) {
             int16_t twi_exit_code = twi_receive_bytes(raw_datetime, 0x00, 6);
             switch (twi_exit_code) {
@@ -128,23 +119,23 @@ int main(void) {
             twi_ready = false;
         }
 
-        /* --------------- transmit data with USART --------------- */
+        // transmit data with USART
         if (need_to_transmit_datetime && usart_transmit_string(formatted_seconds))
             need_to_transmit_datetime = false;
 
-        /* --------------- receive data with USART --------------- */
+        // receive data with USART
         if (usart_rx_complete) {
             min_brightness_level = map(UDR0, 0, UINT8_MAX, 0, PWM_MAX);
             usart_rx_complete = false;
         }
 
-        /* --------------- update ADC value --------------- */
+        // update ADC value
         if (adc_complete) {
             max_brightness_level = map(ADCH, 0, ADC_MAX, 0, PWM_MAX);  // use 8 high ADC bits only due to the inaccuracy of 1-2 low bits
             adc_complete = false;
         }
 
-        /* --------------- update button --------------- */
+        // update the button
         button_poll(&left_button);
 
         if (button_clicked(&left_button) /*&& !white_led_pwm.change_smoothly && !yellow_led_pwm.change_smoothly*/) {
@@ -156,7 +147,7 @@ int main(void) {
             need_to_read_datetime = true;
         }
 
-        /* --------------- manage light --------------- */
+        // manage the LEDs
         switch (led_light_mode) {
             case WHITE_ON:
                 pwm_set(&white_led_pwm, max_brightness_level);  // turn on
