@@ -6,6 +6,13 @@
 volatile bool usart_rx_complete = false;
 volatile bool usart_data_register_empty = false;
 
+ISR(USART_RX_vect) {
+    usart_rx_complete = true;
+}
+ISR(USART_UDRE_vect) {
+    usart_data_register_empty = true;
+}
+
 void usart_init(void) {
     // set baud rate
     UBRR0H = (UBRR_VALUE >> 8);

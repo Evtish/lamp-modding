@@ -1,17 +1,16 @@
 /* ------------------------------ HEADER FILES ------------------------------ */
-#include <avr/io.h>
-#include <avr/interrupt.h>
-
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+
+#include <avr/io.h>
+#include <avr/interrupt.h>
 
 #include "usart.h"
 #include "gpio.h"
 #include "pwm.h"
 #include "adc.h"
 #include "twi.h"
-
 #include "modes.h"
 #include "button.h"
 #include "timings.h"
@@ -20,26 +19,6 @@
 /* ------------------------------ DEFINES ------------------------------ */
 #define RTC_BUFFER_SIZE 6
 #define TWI_ERROR_MESSAGE "вобла"
-
-/* ------------------------------ INTERRUPTS ------------------------------ */
-ISR(ADC_vect) {
-    adc_complete = true;
-}
-
-ISR(TIMER1_OVF_vect) {
-    timer_amount_of_overflows++;
-}
-
-ISR(USART_RX_vect) {
-    usart_rx_complete = true;
-}
-ISR(USART_UDRE_vect) {
-    usart_data_register_empty = true;
-}
-
-ISR(TWI_vect) {
-    twi_ready = true;
-}
 
 int main(void) {
     /* ------------------------------ LOCAL VARIABLES ------------------------------ */

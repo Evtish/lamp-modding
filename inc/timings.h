@@ -1,8 +1,9 @@
 #pragma once
 
 #include <stdint.h>
-#include <stdbool.h>
+
 #include <avr/io.h>
+#include <avr/interrupt.h>
 
 #define TIMER_SIZE 1023  // PWM_MAX
 #define TIMER_PRESCALER_BITNESS 3

@@ -1,10 +1,10 @@
 #pragma once
 
-#include <avr/io.h>
-
-#include <stdbool.h>
 #include <stdint.h>
-#include <string.h>
+#include <stdbool.h>
+
+#include <avr/io.h>
+#include <avr/interrupt.h>
 
 extern volatile bool twi_ready;
 

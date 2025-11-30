@@ -2,7 +2,9 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+
 #include <avr/io.h>
+#include <avr/interrupt.h>
 
 #define ADC_MAX 255  // use ADCH only
 

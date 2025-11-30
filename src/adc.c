@@ -2,6 +2,10 @@
 
 volatile bool adc_complete = false;
 
+ISR(ADC_vect) {
+    adc_complete = true;
+}
+
 void adc_init(void) {
     ADMUX |= (
         (1 << REFS0) |  // set VCC as voltage reference

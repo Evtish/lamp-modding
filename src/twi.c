@@ -20,6 +20,10 @@
 
 volatile bool twi_ready = true;
 
+ISR(TWI_vect) {
+    twi_ready = true;
+}
+
 void twi_init(void) {
     TWBR = TWBR_VALUE;
 

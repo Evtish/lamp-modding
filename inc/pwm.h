@@ -1,10 +1,10 @@
 #pragma once
 
+#include <stdint.h>
+#include <stdlib.h>
+
 #include "utils.h"
 #include "timings.h"
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdlib.h>
 
 #define PWM_MAX 1023
 

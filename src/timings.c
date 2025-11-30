@@ -2,6 +2,10 @@
 
 volatile uint32_t timer_amount_of_overflows = 0;
 
+ISR(TIMER1_OVF_vect) {
+    timer_amount_of_overflows++;
+}
+
 void timer1_init(void) {
     TCCR1A |= (
         (1 << COM1A1) |  // non-inverting PWM (OCR1A)

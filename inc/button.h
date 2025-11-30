@@ -1,8 +1,9 @@
 #pragma once
 
-#include "timings.h"
 #include <stdint.h>
 #include <stdbool.h>
+
+#include "timings.h"
 
 #define BTN_SHORT_CLICK_TIME_MS 50UL  // YOU CAN EDIT THE VALUE (the minimal recommended value is 50)
 #define BTN_DEBOUNCE_CHECK_PERIOD_MS 5
