@@ -16,8 +16,8 @@ typedef struct {
     volatile uint8_t* pin_address_r;    // PINx
     uint8_t pin;                        // Pxn
     bool was_pressed;
-} button;
+} Button;
 
-bool button_is_pressed(button *btn);
-void button_poll(button *btn);
-bool button_clicked(button *btn);
+bool button_is_pressed(Button *btn);
+void button_poll(Button *btn);
+bool button_clicked(Button *btn);

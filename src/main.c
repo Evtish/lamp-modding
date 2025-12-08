@@ -22,7 +22,7 @@
 
 int main(void) {
     /* ------------------------------ LOCAL VARIABLES ------------------------------ */
-    pwm white_led_pwm = {
+    Pwm white_led_pwm = {
         .data_direction_r = &DDRB,
         .output_compare_r = &OCR1A,
         .pin = WHITE_LED_PIN,
@@ -30,7 +30,7 @@ int main(void) {
         .last_call_time = 0,
         .start_change_delta = 0
     };
-    pwm yellow_led_pwm = {
+    Pwm yellow_led_pwm = {
         .data_direction_r = &DDRB,
         .output_compare_r = &OCR1B,
         .pin = YELLOW_LED_PIN,
@@ -39,7 +39,7 @@ int main(void) {
         .start_change_delta = 0
     };
 
-    button left_button = {
+    Button left_button = {
         .port_r = &PORTD,
         .pin_address_r = &PIND,
         .pin = LEFT_BUTTON_PIN,

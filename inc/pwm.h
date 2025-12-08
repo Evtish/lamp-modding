@@ -19,6 +19,6 @@ typedef struct {
     volatile uint16_t* output_compare_r;    // OCRnx
     uint8_t pin;                            // Pxn
     bool change_smoothly;
-} pwm;
+} Pwm;
 
-void pwm_set(pwm* my_pwm, const uint16_t new_val);
+void pwm_set(Pwm* my_pwm, const uint16_t new_val);
