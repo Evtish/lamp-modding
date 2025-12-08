@@ -1,4 +1,5 @@
 #include "twi.h"
+#include <stdint.h>
 
 #define TWSR_STATUS_CODE_MASK   0xF8
 #define TWSR_STATUS_CODE        (TWSR & TWSR_STATUS_CODE_MASK)
@@ -52,7 +53,7 @@ void twi_conversation_error(int16_t *exit_code, uint8_t *step, const uint8_t sta
 -1: in progress
 0:  successfully received
 1:  error (status code + number of step)*/
-int16_t twi_receive_bytes(char *buf, const uint8_t start_address, const uint8_t amount_of_bytes) {
+int16_t twi_receive_bytes(uint8_t *buf, const uint8_t start_address, const uint8_t amount_of_bytes) {
     if (amount_of_bytes == 0) return 0;
 
     static uint8_t step = 0, i = 0;
@@ -135,70 +136,131 @@ int16_t twi_receive_bytes(char *buf, const uint8_t start_address, const uint8_t 
                 break;
             }
         break;
+
+        // // receive a byte of DATA
+        // case 6:
+        //     if (status_code == CODE_RECEIVE_DATA_ACK) {
+        //         buf[i++] = TWDR;
+        //         if (i >= amount_of_bytes - 1) {
+        //             TWCR &= ~(1 << TWEA);
+        //             TWCR |= (1 << TWINT);
+        //             step++;
+        //         }
+        //     }
+        //     else {
+        //         i = 0;
+        //         twi_conversation_error(&exit_code, &step, status_code);
+        //     }
+        // break;
+
+        // // receive the last byte of DATA
+        // case 7:
+        //     if (status_code == CODE_RECEIVE_DATA_NACK) {
+        //         buf[i] = TWDR;
+        //         twi_stop();
+        //         i = 0, step = 0;
+        //         exit_code = 0;
+        //     }
+        //     else {
+        //         i = 0;
+        //         twi_conversation_error(&exit_code, &step, status_code);
+        //     }
+        // break;
     }
 
     return exit_code;
 }
 
-// uint8_t twi_receive_byte() {
-//     static uint8_t step = 0;
-//     uint8_t res = 0;
+/*returns the exit code:
+-1: in progress
+0:  successfully transmitted
+1:  error (status code + number of step)*/
+int16_t twi_transmit_bytes(const uint8_t *buf, const uint8_t start_address, const uint8_t amount_of_bytes) {
+    if (amount_of_bytes == 0) return 0;
 
-//     switch (step) {
-//     case 0:
-//         twi_start();
-//         step++;
-//     break;
+    static uint8_t step = 0, i = 0;
+    uint8_t status_code = TWSR_STATUS_CODE;
+    int16_t exit_code = -1;
 
-//     case 1:
-//         if (twi_ready) {
-//             if (twi_status_code() == CODE_START) {
-//                 TWDR = SLA_R;
-//                 step++;
-//             }
-//             else {
-//                 res = '0' + step;
-//                 step = 0;
-//                 twi_stop();
-//             }
-//             TWCR |= (1 << TWINT);
-//             twi_ready = false;
-//         }
-//     break;
-    
-//     case 2:
-//         if (twi_ready) {
-//             if (twi_status_code() == CODE_SLA_R_ACK) {
-//                 step++;
-//             }
-//             else {
-//                 res = '0' + step;
-//                 step = 0;
-//                 twi_stop();
-//             }
-//             TWCR |= (1 << TWINT);
-//             twi_ready = false;
-//         }
-//     break;
+    switch (step) {
+        // transmit START
+        case 0:
+            twi_start();
+            step++;
+        break;
 
-//     case 3:
-//         if (twi_ready) {
-//             res = '0' + twi_status_code();
-//             if (twi_status_code() == CODE_RECEIVE_DATA_NACK) {
-//                 // res = '0' + TWDR;
-//                 step = 0;
-//                 twi_stop();
-//             }
-//             else {
-//                 // res = '0' + step;
-//                 step = 0;
-//                 twi_stop();
-//             }
-//             TWCR |= (1 << TWINT);
-//             twi_ready = false;
-//         }
-//     break;
-//     }
+        // transmit SLA+W
+        case 1:
+            if (status_code == CODE_START) {
+                TWDR = SLA_W;
+                TWCR |= (1 << TWINT);
+                step++;
+            }
+            else twi_conversation_error(&exit_code, &step, status_code);
+            TWCR &= ~(1 << TWSTA);
+        break;
+        
+        // transmit WORD ADDRESS
+        case 2:
+            if (status_code == CODE_SLA_W_ACK) {
+                TWDR = start_address;
+                TWCR |= (1 << TWINT);
+                step++;
+            }
+            else twi_conversation_error(&exit_code, &step, status_code);
+        break;
+        
+        // transmit DATA
+        case 3:
+            switch (status_code) {
+                case CODE_RECEIVE_DATA_ACK:
+                    TWDR = buf[i++];
+                    if (i >= amount_of_bytes - 1) TWCR &= ~(1 << TWEA);
+                    TWCR |= (1 << TWINT);
+                break;
+                case CODE_RECEIVE_DATA_NACK:
+                    TWDR = buf[i];
+                    twi_stop();
+                    i = 0, step = 0;
+                    exit_code = 0;
+                break;
+                default:
+                    i = 0;
+                    twi_conversation_error(&exit_code, &step, status_code);
+                break;
+            }
+        break;
 
-//     return ((step == 0) ? res : 0);
-// }
+        // // transmit a byte of DATA
+        // case 3:
+        //     if (status_code == CODE_RECEIVE_DATA_ACK) {
+        //         TWDR = buf[i++];
+        //         if (i >= amount_of_bytes - 1) {
+        //             TWCR &= ~(1 << TWEA);
+        //             TWCR |= (1 << TWINT);
+        //             step++;
+        //         }
+        //         else {
+        //             i = 0;
+        //             twi_conversation_error(&exit_code, &step, status_code);
+        //         }
+        //     }
+        // break;
+
+        // // transmit the last byte of DATA
+        // case 4:
+        //     if (status_code == CODE_RECEIVE_DATA_NACK) {
+        //         TWDR = buf[i];
+        //         twi_stop();
+        //         i = 0, step = 0;
+        //         exit_code = 0;
+        //     }
+        //     else {
+        //         i = 0;
+        //         twi_conversation_error(&exit_code, &step, status_code);
+        //     }
+        // break;
+    }
+
+    return exit_code;
+}

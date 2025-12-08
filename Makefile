@@ -12,7 +12,8 @@ ELF_FILE := $(BUILD_DIR)/$(PROGRAM_NAME).elf
 HEX_FILE := $(BUILD_DIR)/$(PROGRAM_NAME).hex
 
 CC := avr-gcc
-CFLAGS := -DF_CPU=16000000UL -mmcu=atmega328p -MMD -MP -Wall -Wextra -pedantic -Os -I ./$(INC_DIR)
+CFLAGS := -DF_CPU=16000000UL -mmcu=atmega328p -g -MMD -MP -Wall -Wextra -pedantic -Os -I./$(INC_DIR)
+LDFLAGS := -g -mmcu=atmega328p
 OBJCOPY_FLAGS := -R .eeprom -O ihex
 AVRDUDE_FLAGS := -c arduino -p m328p -P $(USB_PORT)
 
@@ -22,7 +23,7 @@ all: $(HEX_FILE)
 $(BUILD_DIR):
 	mkdir -pv $(BUILD_DIR)
 
-# check if build directory exists
+# check if the build directory exists
 $(OBJECT_FILES): | $(BUILD_DIR)
 
 # compile
@@ -33,17 +34,17 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
 
 # link
 $(ELF_FILE): $(OBJECT_FILES)
-	$(CC) $^ $(CFLAGS) -o $@
+	$(CC) $^ $(LDFLAGS) -o $@
 
 # create .hex file from .elf
 $(HEX_FILE): $(ELF_FILE)
 	avr-objcopy $(OBJCOPY_FLAGS) $^ $@
 
-# flash MCU
+# flash an MCU
 flash: $(HEX_FILE)
 	avrdude $(AVRDUDE_FLAGS) -U flash:w:$<
 
-# remove build files
+# remove the build files
 clean:
 	rm -rf $(BUILD_DIR)
 

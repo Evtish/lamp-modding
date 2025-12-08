@@ -51,8 +51,9 @@ int main(void) {
     light_mode led_light_mode = WHITE_ON;
     uint16_t max_brightness_level = PWM_MAX, min_brightness_level = 0;
 
-    char raw_datetime[RTC_BUFFER_SIZE], formatted_seconds[16];
-    bool need_to_read_datetime = false, need_to_transmit_datetime = false;
+    uint8_t raw_datetime[RTC_BUFFER_SIZE];
+    char formatted_seconds[16];
+    bool need_to_write_datetime = false, need_to_read_datetime = false, need_to_transmit_datetime = false;
 
     /* ------------------------------ INITIALIZATION ------------------------------ */
     gpio_output_init(white_led_pwm.data_direction_r, white_led_pwm.pin);
@@ -70,11 +71,35 @@ int main(void) {
 
     sei();  // allow interrupts;
 
+    // if (button_is_pressed(&left_button))
+        // need_to_write_datetime = true;
+
     /* ------------------------------ PROGRAM LOOP ------------------------------ */
     while (true) {
-        // receive data from RTC
+        // // set RTC datetime
+        // if (need_to_write_datetime && twi_ready) {
+        //     const uint8_t arb_datetime[] = {89, 89, 35, 7, 49, 18, 153};
+        //     const int16_t twi_exit_code = twi_transmit_bytes(arb_datetime, 0x00, 7);
+        //     switch (twi_exit_code) {
+        //         // in progress
+        //         case -1: break;
+        //         // success
+        //         case 0:
+        //             need_to_write_datetime = false;
+        //         break;
+        //         // error
+        //         default:
+        //             sprintf(formatted_seconds, "%s%d", TWI_ERROR_MESSAGE, twi_exit_code);
+
+        //             need_to_write_datetime = false;
+        //         break;
+        //     }
+        //     twi_ready = false;
+        // }
+
+        // get RTC datetime
         if (need_to_read_datetime && twi_ready) {
-            int16_t twi_exit_code = twi_receive_bytes(raw_datetime, 0x00, 6);
+            const int16_t twi_exit_code = twi_receive_bytes(raw_datetime, 0x01, 1);
             switch (twi_exit_code) {
                 // in progress
                 case -1: break;
@@ -124,6 +149,7 @@ int main(void) {
 
             twi_ready = true;
             need_to_read_datetime = true;
+            // need_to_write_datetime = true;
         }
 
         // manage the LEDs
