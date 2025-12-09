@@ -15,6 +15,7 @@
 #define CODE_REPEATED_START     0x10
 #define CODE_SLA_W_ACK          0x18
 #define CODE_TRANSMIT_DATA_ACK  0x28
+// #define CODE_TRANSMIT_DATA_NACK 0x30
 #define CODE_SLA_R_ACK          0x40
 #define CODE_RECEIVE_DATA_ACK   0x50
 #define CODE_RECEIVE_DATA_NACK  0x58
@@ -213,16 +214,16 @@ int16_t twi_transmit_bytes(const uint8_t *buf, const uint8_t start_address, cons
         // transmit DATA
         case 3:
             switch (status_code) {
-                case CODE_RECEIVE_DATA_ACK:
-                    TWDR = buf[i++];
-                    if (i >= amount_of_bytes - 1) TWCR &= ~(1 << TWEA);
-                    TWCR |= (1 << TWINT);
-                break;
-                case CODE_RECEIVE_DATA_NACK:
+                case CODE_TRANSMIT_DATA_ACK:
                     TWDR = buf[i];
-                    twi_stop();
-                    i = 0, step = 0;
-                    exit_code = 0;
+                    if (i <= amount_of_bytes - 1)
+                        i++;
+                    else {
+                        twi_stop();
+                        i = 0, step = 0;
+                        exit_code = 0;
+                    }
+                    TWCR |= (1 << TWINT);
                 break;
                 default:
                     i = 0;

@@ -13,12 +13,14 @@
 #include "twi.h"
 #include "modes.h"
 #include "button.h"
+#include "rtc.h"
 #include "timings.h"
 #include "utils.h"
 
 /* ------------------------------ DEFINES ------------------------------ */
-#define RTC_BUFFER_SIZE 6
-#define TWI_ERROR_MESSAGE "вобла"
+#define BCD_DATETIME_SIZE       7
+#define FORMATTED_DATETIME_SIZE (3 * BCD_DATETIME_SIZE)
+#define TWI_ERROR_MESSAGE       "twierr"
 
 int main(void) {
     /* ------------------------------ LOCAL VARIABLES ------------------------------ */
@@ -39,7 +41,7 @@ int main(void) {
         .start_change_delta = 0
     };
 
-    Button left_button = {
+    Button button = {
         .port_r = &PORTD,
         .pin_address_r = &PIND,
         .pin = LEFT_BUTTON_PIN,
@@ -51,14 +53,14 @@ int main(void) {
     light_mode led_light_mode = WHITE_ON;
     uint16_t max_brightness_level = PWM_MAX, min_brightness_level = 0;
 
-    uint8_t raw_datetime[RTC_BUFFER_SIZE];
-    char formatted_seconds[16];
+    uint8_t bcd_datetime[BCD_DATETIME_SIZE];
+    char formatted_datetime[FORMATTED_DATETIME_SIZE];
     bool need_to_write_datetime = false, need_to_read_datetime = false, need_to_transmit_datetime = false;
 
     /* ------------------------------ INITIALIZATION ------------------------------ */
     gpio_output_init(white_led_pwm.data_direction_r, white_led_pwm.pin);
     gpio_output_init(yellow_led_pwm.data_direction_r, yellow_led_pwm.pin);
-    gpio_input_init(left_button.port_r, left_button.pin);
+    gpio_input_init(button.port_r, button.pin);
 
     timer1_init();
 
@@ -78,7 +80,7 @@ int main(void) {
     while (true) {
         // // set RTC datetime
         // if (need_to_write_datetime && twi_ready) {
-        //     const uint8_t arb_datetime[] = {89, 89, 35, 7, 49, 18, 153};
+        //     const uint8_t arb_datetime[] = {48, 89, 33, 2, 9, 146, 37};
         //     const int16_t twi_exit_code = twi_transmit_bytes(arb_datetime, 0x00, 7);
         //     switch (twi_exit_code) {
         //         // in progress
@@ -89,9 +91,10 @@ int main(void) {
         //         break;
         //         // error
         //         default:
-        //             sprintf(formatted_seconds, "%s%d", TWI_ERROR_MESSAGE, twi_exit_code);
+        //             sprintf(formatted_datetime, "%s%d", TWI_ERROR_MESSAGE, twi_exit_code);
 
         //             need_to_write_datetime = false;
+        //             // need_to_transmit_datetime = true;
         //         break;
         //     }
         //     twi_ready = false;
@@ -99,22 +102,20 @@ int main(void) {
 
         // get RTC datetime
         if (need_to_read_datetime && twi_ready) {
-            const int16_t twi_exit_code = twi_receive_bytes(raw_datetime, 0x01, 1);
+            const int16_t twi_exit_code = twi_receive_bytes(bcd_datetime, 0x00, BCD_DATETIME_SIZE);
             switch (twi_exit_code) {
                 // in progress
                 case -1: break;
                 // success
                 case 0:
-                    formatted_seconds[0] = '0' + (raw_datetime[0] >> 4);
-                    formatted_seconds[1] = '0' + (raw_datetime[0] & 0x0F);
-                    formatted_seconds[2] = '\0';
+                    rtc_format_datetime(formatted_datetime, bcd_datetime, BCD_DATETIME_SIZE);
 
                     need_to_read_datetime = false;
                     need_to_transmit_datetime = true;
                 break;
                 // error
                 default:
-                    sprintf(formatted_seconds, "%s%d", TWI_ERROR_MESSAGE, twi_exit_code);
+                    sprintf(formatted_datetime, "%s%d", TWI_ERROR_MESSAGE, twi_exit_code);
 
                     need_to_read_datetime = false;
                     need_to_transmit_datetime = true;
@@ -124,7 +125,7 @@ int main(void) {
         }
 
         // transmit data with USART
-        if (need_to_transmit_datetime && usart_transmit_string(formatted_seconds))
+        if (need_to_transmit_datetime && usart_transmit_string(formatted_datetime))
             need_to_transmit_datetime = false;
 
         // receive data with USART
@@ -140,9 +141,9 @@ int main(void) {
         }
 
         // update the button
-        button_poll(&left_button);
+        button_poll(&button);
 
-        if (button_clicked(&left_button) /*&& !white_led_pwm.change_smoothly && !yellow_led_pwm.change_smoothly*/) {
+        if (button_clicked(&button) /*&& !white_led_pwm.change_smoothly && !yellow_led_pwm.change_smoothly*/) {
             led_light_mode = (led_light_mode == WHITE_ON) ? YELLOW_ON : WHITE_ON;
             white_led_pwm.change_smoothly = true;
             yellow_led_pwm.change_smoothly = true;
