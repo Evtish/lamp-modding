@@ -73,6 +73,8 @@ int main(void) {
 
     sei();  // allow interrupts;
 
+    // while (twi_transmit_bytes((const uint8_t[]) {0b00000111}, 0x0F, 1) == 0);
+
     // if (button_is_pressed(&left_button))
         // need_to_write_datetime = true;
 
@@ -102,12 +104,12 @@ int main(void) {
 
         // get RTC datetime
         if (need_to_read_datetime && twi_ready) {
-            const int16_t twi_exit_code = twi_receive_bytes(bcd_datetime, 0x00, BCD_DATETIME_SIZE);
+            const uint16_t twi_exit_code = twi_receive_bytes(bcd_datetime, 0x00, BCD_DATETIME_SIZE);
             switch (twi_exit_code) {
                 // in progress
-                case -1: break;
+                case 0: break;
                 // success
-                case 0:
+                case 1:
                     rtc_format_datetime(formatted_datetime, bcd_datetime, BCD_DATETIME_SIZE);
 
                     need_to_read_datetime = false;
@@ -115,6 +117,7 @@ int main(void) {
                 break;
                 // error
                 default:
+                    // TODO: replace sprintf with other function (e.g. memcpy) to reduce program size
                     sprintf(formatted_datetime, "%s%d", TWI_ERROR_MESSAGE, twi_exit_code);
 
                     need_to_read_datetime = false;
@@ -136,7 +139,8 @@ int main(void) {
 
         // update ADC value
         if (adc_complete) {
-            max_brightness_level = map(ADCH, 0, ADC_MAX, 0, PWM_MAX);  // use 8 high ADC bits only due to the inaccuracy of 1-2 low bits
+            // use 8 high ADC bits only due to the inaccuracy of 1-2 low bits
+            max_brightness_level = map(ADCH, 0, ADC_MAX, 0, PWM_MAX);
             adc_complete = false;
         }
 
@@ -148,7 +152,7 @@ int main(void) {
             white_led_pwm.change_smoothly = true;
             yellow_led_pwm.change_smoothly = true;
 
-            twi_ready = true;
+            // twi_ready = true;
             need_to_read_datetime = true;
             // need_to_write_datetime = true;
         }

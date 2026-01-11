@@ -1,4 +1,5 @@
 #include "timings.h"
+#include <stdint.h>
 
 volatile uint32_t timer_amount_of_overflows = 0;
 
@@ -27,6 +28,10 @@ uint32_t ticks_to_ms(const uint32_t ticks) {
     return ticks * 1000UL / (F_CPU >> TIMER_PRESCALER_BITNESS);
 }
 
+uint32_t get_ticks(void) {
+    return TCNT1 + timer_amount_of_overflows * TIMER_SIZE;
+}
+
 uint32_t get_time_ms(void) {
-    return ticks_to_ms(TCNT1 + timer_amount_of_overflows * TIMER_SIZE);
+    return ticks_to_ms(get_ticks());
 }
