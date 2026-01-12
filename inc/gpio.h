@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 
-#define PHOTORESISTOR_PIN PORTC3  // ADC3
+#define PHOTORESISTOR_PIN PORTC3 // ADC3
 
 #define WHITE_LED_PIN PORTB1
 #define YELLOW_LED_PIN PORTB2

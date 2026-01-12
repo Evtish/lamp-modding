@@ -20,7 +20,7 @@
 /* ------------------------------ DEFINES ------------------------------ */
 #define BCD_DATETIME_SIZE       7
 #define FORMATTED_DATETIME_SIZE (3 * BCD_DATETIME_SIZE)
-#define TWI_ERROR_MESSAGE       "twierr"
+#define TWI_ERROR_MESSAGE_PREFIX       "twierr"
 
 int main(void) {
     /* ------------------------------ LOCAL VARIABLES ------------------------------ */
@@ -71,60 +71,55 @@ int main(void) {
 
     twi_init();
 
-    sei();  // allow interrupts;
+    sei(); // allow interrupts;
 
-    // while (twi_transmit_bytes((const uint8_t[]) {0b00000111}, 0x0F, 1) == 0);
-
-    // if (button_is_pressed(&left_button))
-        // need_to_write_datetime = true;
+    if (button_is_pressed(&button))
+        need_to_write_datetime = true;
 
     /* ------------------------------ PROGRAM LOOP ------------------------------ */
     while (true) {
-        // // set RTC datetime
-        // if (need_to_write_datetime && twi_ready) {
-        //     const uint8_t arb_datetime[] = {48, 89, 33, 2, 9, 146, 37};
-        //     const int16_t twi_exit_code = twi_transmit_bytes(arb_datetime, 0x00, 7);
-        //     switch (twi_exit_code) {
-        //         // in progress
-        //         case -1: break;
-        //         // success
-        //         case 0:
-        //             need_to_write_datetime = false;
-        //         break;
-        //         // error
-        //         default:
-        //             sprintf(formatted_datetime, "%s%d", TWI_ERROR_MESSAGE, twi_exit_code);
+        // set RTC datetime
+        if (need_to_write_datetime) {
+            const uint8_t arb_datetime[] = {48, 89, 33, 2, 9, 146, 37};
+            const int16_t twi_exit_code = twi_transmit_bytes(arb_datetime, 0x00, BCD_DATETIME_SIZE);
 
-        //             need_to_write_datetime = false;
-        //             // need_to_transmit_datetime = true;
-        //         break;
-        //     }
-        //     twi_ready = false;
-        // }
+            // success
+            if (twi_exit_code == TWI_SUCCESS) {
+                rtc_format_datetime(formatted_datetime, bcd_datetime, BCD_DATETIME_SIZE);
+            }
+
+            // error
+            else {
+                // TODO: replace sprintf with other function (e.g. memcpy) to reduce program size
+                sprintf(formatted_datetime, "%s%d", TWI_ERROR_MESSAGE_PREFIX, twi_exit_code);
+                
+                need_to_read_datetime = false;
+                need_to_transmit_datetime = true;
+            }
+
+            need_to_write_datetime = false;
+        }
 
         // get RTC datetime
-        if (need_to_read_datetime && twi_ready) {
-            const uint16_t twi_exit_code = twi_receive_bytes(bcd_datetime, 0x00, BCD_DATETIME_SIZE);
-            switch (twi_exit_code) {
-                // in progress
-                case 0: break;
-                // success
-                case 1:
-                    rtc_format_datetime(formatted_datetime, bcd_datetime, BCD_DATETIME_SIZE);
+        if (need_to_read_datetime) {
+            const int16_t twi_exit_code = twi_receive_bytes(bcd_datetime, 0x00, BCD_DATETIME_SIZE);
 
-                    need_to_read_datetime = false;
-                    need_to_transmit_datetime = true;
-                break;
-                // error
-                default:
-                    // TODO: replace sprintf with other function (e.g. memcpy) to reduce program size
-                    sprintf(formatted_datetime, "%s%d", TWI_ERROR_MESSAGE, twi_exit_code);
+            // success
+            if (twi_exit_code == TWI_SUCCESS) {
+                rtc_format_datetime(formatted_datetime, bcd_datetime, BCD_DATETIME_SIZE);
 
-                    need_to_read_datetime = false;
-                    need_to_transmit_datetime = true;
-                break;
+                need_to_read_datetime = false;
+                need_to_transmit_datetime = true;
             }
-            twi_ready = false;
+
+            // error
+            else {
+                // TODO: replace sprintf with other function (e.g. memcpy) to reduce program size
+                sprintf(formatted_datetime, "%s%d", TWI_ERROR_MESSAGE_PREFIX, twi_exit_code);
+
+                need_to_read_datetime = false;
+                need_to_transmit_datetime = true;
+            }
         }
 
         // transmit data with USART
@@ -161,12 +156,12 @@ int main(void) {
         switch (led_light_mode) {
             case WHITE_ON:
                 pwm_set(&white_led_pwm, max_brightness_level);  // turn on
-                pwm_set(&yellow_led_pwm, min_brightness_level);  // turn off
-            break;
+                pwm_set(&yellow_led_pwm, min_brightness_level); // turn off
+                break;
             case YELLOW_ON:
                 pwm_set(&white_led_pwm, min_brightness_level);
                 pwm_set(&yellow_led_pwm, max_brightness_level);
-            break;
+                break;
         }
     }
     

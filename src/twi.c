@@ -1,8 +1,8 @@
-#include "twi.h"
-// #include "timings.h"
 #include <avr/io.h>
+#include <avr/interrupt.h>
 #include <util/delay.h>
-#include <stdint.h>
+
+#include "twi.h"
 
 #define SDA 4
 #define SCL 5
@@ -13,7 +13,7 @@
 #define SCL_FREQUENCY_HZ    400000UL
 #define TWBR_VALUE          ((F_CPU / SCL_FREQUENCY_HZ - 16) / 2)
 
-#define SLAVE_ADDRESS   0b1101000 // DS3231
+#define SLAVE_ADDRESS   0b1101000 // DS3231 RTC
 #define SLA_W           (SLAVE_ADDRESS << 1)
 #define SLA_R           ((SLAVE_ADDRESS << 1) | 1)
 
@@ -21,293 +21,223 @@
 #define CODE_REPEATED_START     0x10
 #define CODE_SLA_W_ACK          0x18
 #define CODE_TRANSMIT_DATA_ACK  0x28
-// #define CODE_TRANSMIT_DATA_NACK 0x30
+#define CODE_TRANSMIT_DATA_NACK 0x30
 #define CODE_SLA_R_ACK          0x40
 #define CODE_RECEIVE_DATA_ACK   0x50
 #define CODE_RECEIVE_DATA_NACK  0x58
 
-volatile bool twi_ready = true;
+#define TWI_AMOUNT_OF_RESET_CYCLES          100
+#define TWI_AMOUNT_OF_TRANSMISSION_ATTEMPTS 100
+#define TWI_DELAY_US                        5
+#define TWI_FAILURE                         0x01
 
-ISR(TWI_vect) {
-    twi_ready = true;
-}
-
-void twi_init(void) {
+// inspired by this: https://github.com/Naguissa/uRTCLib/issues/42#issue-2229505594
+// fix unsynchronized TWI bus (TWI_SUCCESS - success, TWI_FAILURE - failure), you need to manually enable TWI after calling the function
+uint8_t twi_reset(void) {
     TWCR &= ~(1 << TWEN); // disable TWI
 
     DDRC &= ~((1 << SDA) | (1 << SCL)); // configure SDA and SCL as input pins
     PORTC |= (1 << SDA) | (1 << SCL); // enable pull-up resistors
-    _delay_us(5);
+    _delay_us(TWI_DELAY_US);
 
-    if (!(PINC & (1 << SDA))) { // check I2C if is in unknown state
-        for(uint8_t i = 0; i < 100 && !(PINC & (1 << SDA)); i++) {
-            // SCL low
-            DDRC |= (1 << SCL);
-            PORTC &= ~(1 << SCL);
-            _delay_us(5);
+    if (!(PINC & (1 << SDA))) { // check if TWI is in unknown state
+        for (uint8_t i = 0; !(PINC & (1 << SDA)); i++) {
+            DDRC |= (1 << SCL); // configure SCL as an output pin
+            PORTC &= ~(1 << SCL); // SCL low
+            _delay_us(TWI_DELAY_US);
         
-            // SCL high
-            DDRC &= ~(1 << SCL);
-            PORTC |= (1 << SCL);
-            _delay_us(5);
-            
-            // if (PINC & (1 << SDA)) { // check I2C if is in known state
-            //     break;
-            // }
+            DDRC &= ~(1 << SCL); // configure SCL as an input pin
+            PORTC |= (1 << SCL); // enable a pull-up resistor (SCL high)
+            _delay_us(TWI_DELAY_US);
+
+            if (i >= TWI_AMOUNT_OF_RESET_CYCLES)
+                return TWI_FAILURE; // TWI bus is still unsynchronized
         }
 
-        // if (ticks_now - prev_ticks >= F_CPU / SCL_FREQUENCY_HZ)
-        // SCL high
-        DDRC &= ~(1 << SCL);
-        PORTC |= (1 << SCL);
+        // START
+        DDRC &= ~(1 << SCL); // configure SCL as an input pin
+        PORTC |= (1 << SCL); // enable a pull-up resistor (SCL high)
+        _delay_us(TWI_DELAY_US);
+        DDRC |= (1 << SDA); // configure SDA as an output pin
+        PORTC &= ~(1 << SDA); // SDA low
+        _delay_us(TWI_DELAY_US);
 
-        // START (SDA low)
-        DDRC |= (1 << SDA);
-        PORTC &= ~(1 << SDA);
-        _delay_us(5);
-
-        // // STOP (SDA high)
-        // DDRC &= ~(1 << SDA);
-        // PORTC |= (1 << SDA);
-        // _delay_us(5);
+        // STOP
+        // DDRC &= ~(1 << SDA); // configure SDA as an input pin
+        // PORTC |= (1 << SDA); // enable a pull-up resistor (SDA high)
+        // _delay_us(TWI_DELAY_US);
     }
 
-    TWBR = TWBR_VALUE;
-
-    TWSR &= ~((1 << TWPS1) | (1 << TWPS0)); // prescaler = 1
-
-    TWCR = (
-        (1 << TWEN) |   // enable TWI
-        (1 << TWEA) |   // enable acknowledge bit
-        (1 << TWIE)     // enable interrupts
-    );
+    return TWI_SUCCESS; // TWI bus became synchronized
 }
 
-// writing a one to TWINT clears the flag (the TWI will not start any operation as long as the TWINT bit in TWCR is set)
-void twi_start(void) { TWCR |= (1 << TWSTA) | (1 << TWINT); }
+void twi_init(void) {
+    if (twi_reset() == TWI_FAILURE)
+        return;
 
-// writing a one to TWINT clears the flag (the TWI will not start any operation as long as the TWINT bit in TWCR is set)
-void twi_stop(void) { TWCR |= (1 << TWSTO) | (1 << TWINT); }
+    TWBR = TWBR_VALUE; // frequency
 
-void twi_conversation_error(uint16_t *exit_code, uint8_t *step, const uint8_t status_code) {
+    TWSR = ~((1 << TWPS1) | (1 << TWPS0)); // prescaler = 1
+}
+
+void twi_start(void) { TWCR = (1 << TWSTA) | (1 << TWINT) | (1 << TWEN); }
+
+void twi_stop(void) { TWCR = (1 << TWSTO) | (1 << TWINT) | (1 << TWEN); }
+
+void twi_enable_ack(void) { TWCR = (1 << TWEA) | (1 << TWINT) | (1 << TWEN); }
+
+// clears TWINT bit
+void twi_clear(void) { TWCR = (1 << TWINT) | (1 << TWEN); }
+
+// waits for TWINT bit set
+void twi_wait(void) { while (!(TWCR & (1 << TWINT))); }
+
+/*returns the exit code:
+TWI_SUCCESS:    successfully transmitted
+other:          error*/
+uint8_t twi_receive_bytes(uint8_t *buf, const uint8_t start_address, const uint8_t amount_of_bytes) {
+    if (amount_of_bytes == 0) return TWI_SUCCESS; // there is nothing to receive
+
+    uint8_t status_code = 0;
+
+    // transmit START
+    twi_start();
+    twi_wait();
+    if (TWSR_STATUS_CODE != CODE_START) {
+        status_code = TWSR_STATUS_CODE;
+        twi_stop();
+        return status_code;
+    }
+
+    // transmit SLA+W
+    TWDR = SLA_W;
+    twi_clear();
+    twi_wait();
+    if (TWSR_STATUS_CODE != CODE_SLA_W_ACK) {
+        status_code = TWSR_STATUS_CODE;
+        twi_stop();
+        return status_code;
+    }
+
+    // transmit WORD ADDRESS
+    TWDR = start_address;
+    twi_clear();
+    twi_wait();
+    if (TWSR_STATUS_CODE != CODE_TRANSMIT_DATA_ACK) {
+        status_code = TWSR_STATUS_CODE;
+        twi_stop();
+        return status_code;
+    }
+
+    // transmit REPEATED START
+    twi_start();
+    twi_wait();
+    if (TWSR_STATUS_CODE != CODE_REPEATED_START) {
+        status_code = TWSR_STATUS_CODE;
+        twi_stop();
+        return status_code;
+    }
+
+    // transmit SLA+R
+    TWDR = SLA_R;
+    twi_clear();
+    twi_wait();
+    if (TWSR_STATUS_CODE != CODE_SLA_R_ACK) {
+        status_code = TWSR_STATUS_CODE;
+        twi_stop();
+        return status_code;
+    }
+    
+    // receive DATA
+    for (uint8_t i = 0; i < amount_of_bytes; i++) {
+        if (i < amount_of_bytes - 1)
+            twi_enable_ack(); // enable returning of ACK if this is not the last byte
+        else
+            twi_clear();
+        twi_wait();
+
+        if (TWSR_STATUS_CODE != CODE_RECEIVE_DATA_ACK && TWSR_STATUS_CODE != CODE_RECEIVE_DATA_NACK) {
+            status_code = TWSR_STATUS_CODE;
+            twi_stop();
+            return status_code;
+        }
+
+        buf[i] = TWDR;
+    }
+
+    // transmit STOP
     twi_stop();
-    *exit_code = (*step << 8) | status_code;
-    *step = 0;
+    return TWI_SUCCESS;
 }
 
 /*returns the exit code:
-0:      in progress
-1:      successfully transmitted
-other:  error*/
-uint16_t twi_receive_bytes(uint8_t *buf, const uint8_t start_address, const uint8_t amount_of_bytes) {
-    if (amount_of_bytes == 0) return 1;
+TWI_SUCCESS:    successfully transmitted
+other:          error*/
+uint8_t twi_transmit_bytes(const uint8_t *buf, const uint8_t start_address, const uint8_t amount_of_bytes) {
+    if (amount_of_bytes == 0) return TWI_SUCCESS; // there is nothing to transmit
 
-    static uint8_t step = 0, i = 0;
-    uint8_t status_code = TWSR_STATUS_CODE;
-    uint16_t exit_code = 0;
+    uint8_t status_code = 0;
 
-    switch (step) {
-        // transmit START
-        case 0:
-            twi_start();
-            step++;
-        break;
+    // transmit START
+    twi_start();
+    twi_wait();
 
-        // transmit SLA+W
-        case 1:
-            if (status_code == CODE_START) {
-                TWDR = SLA_W;
-                TWCR |= (1 << TWINT);
-                step++;
-            }
-            else twi_conversation_error(&exit_code, &step, status_code);
-            TWCR &= ~(1 << TWSTA);
-        break;
-        
-        // transmit WORD ADDRESS
-        case 2:
-            if (status_code == CODE_SLA_W_ACK) {
-                TWDR = start_address;
-                TWCR |= (1 << TWINT);
-                step++;
-            }
-            else twi_conversation_error(&exit_code, &step, status_code);
-        break;
-        
-        // transmit REPEATED START
-        case 3:
-            if (status_code == CODE_TRANSMIT_DATA_ACK) {
-                twi_start();
-                step++;
-            }
-            else twi_conversation_error(&exit_code, &step, status_code);
-        break;
+    if (TWSR_STATUS_CODE != CODE_START) {
+        status_code = TWSR_STATUS_CODE;
+        twi_stop();
+        return status_code;
+    }
+    // transmit SLA+W
+    TWDR = SLA_W;
+    twi_clear();
+    twi_wait();
 
-        // transmit SLA+R
-        case 4:
-            if (status_code == CODE_REPEATED_START) {
-                TWDR = SLA_R;
-                TWCR |= (1 << TWINT);
-                step++;
-            }
-            else twi_conversation_error(&exit_code, &step, status_code);
-            TWCR &= ~(1 << TWSTA);
-        break;
-        case 5:
-            if (status_code == CODE_SLA_R_ACK) {
-                if (i >= amount_of_bytes - 1) TWCR &= ~(1 << TWEA);
-                TWCR |= (1 << TWINT);
-                step++;
-            }
-            else twi_conversation_error(&exit_code, &step, status_code);
-        break;
-        
-        // receive DATA
-        case 6:
-            switch (status_code) {
-                case CODE_RECEIVE_DATA_ACK:
-                    buf[i++] = TWDR;
-                    if (i > amount_of_bytes) TWCR &= ~(1 << TWEA);
-                    TWCR |= (1 << TWINT);
-                break;
-                case CODE_RECEIVE_DATA_NACK:
-                    buf[i] = TWDR;
-                    TWCR |= (1 << TWEA);
-                    twi_stop();
-                    i = 0, step = 0;
-                    exit_code = 1;
-                break;
-                default:
-                    i = 0;
-                    TWCR |= (1 << TWEA);
-                    twi_conversation_error(&exit_code, &step, status_code);
-                break;
-            }
-        break;
+    if (TWSR_STATUS_CODE != CODE_SLA_W_ACK) {
+        status_code = TWSR_STATUS_CODE;
+        twi_stop();
+        return status_code;
+    }
+    // transmit WORD ADDRESS
+    TWDR = start_address;
+    twi_clear();
+    twi_wait();
 
-        // // receive a byte of DATA
-        // case 6:
-        //     if (status_code == CODE_RECEIVE_DATA_ACK) {
-        //         buf[i++] = TWDR;
-        //         if (i >= amount_of_bytes - 1) {
-        //             TWCR &= ~(1 << TWEA);
-        //             TWCR |= (1 << TWINT);
-        //             step++;
-        //         }
-        //     }
-        //     else {
-        //         i = 0;
-        //         twi_conversation_error(&exit_code, &step, status_code);
-        //     }
-        // break;
-
-        // // receive the last byte of DATA
-        // case 7:
-        //     if (status_code == CODE_RECEIVE_DATA_NACK) {
-        //         buf[i] = TWDR;
-        //         twi_stop();
-        //         i = 0, step = 0;
-        //         exit_code = 0;
-        //     }
-        //     else {
-        //         i = 0;
-        //         twi_conversation_error(&exit_code, &step, status_code);
-        //     }
-        // break;
+    if (TWSR_STATUS_CODE != CODE_TRANSMIT_DATA_ACK) {
+        status_code = TWSR_STATUS_CODE;
+        twi_stop();
+        return status_code;
     }
 
-    return exit_code;
-}
+    // transmit DATA
+    for (uint8_t i = 0, attempts = 0; i < amount_of_bytes;) {
+        TWDR = buf[i];
+        twi_clear();
+        twi_wait();
 
-/*returns the exit code:
-0:      in progress
-1:      successfully transmitted
-other:  error*/
-uint16_t twi_transmit_bytes(const uint8_t *buf, const uint8_t start_address, const uint8_t amount_of_bytes) {
-    if (amount_of_bytes == 0) return 1;
-
-    static uint8_t step = 0, i = 0;
-    uint8_t status_code = TWSR_STATUS_CODE;
-    uint16_t exit_code = 0;
-
-    switch (step) {
-        // transmit START
-        case 0:
-            twi_start();
-            step++;
-        break;
-
-        // transmit SLA+W
-        case 1:
-            if (status_code == CODE_START) {
-                TWDR = SLA_W;
-                TWCR |= (1 << TWINT);
-                step++;
-            }
-            else twi_conversation_error(&exit_code, &step, status_code);
-            TWCR &= ~(1 << TWSTA);
-        break;
-        
-        // transmit WORD ADDRESS
-        case 2:
-            if (status_code == CODE_SLA_W_ACK) {
-                TWDR = start_address;
-                TWCR |= (1 << TWINT);
-                step++;
-            }
-            else twi_conversation_error(&exit_code, &step, status_code);
-        break;
-        
-        // transmit DATA
-        case 3:
-            if (status_code == CODE_TRANSMIT_DATA_ACK) {
-                if (i < amount_of_bytes) {
-                    TWDR = buf[i];
-                    i++;
+        switch (TWSR_STATUS_CODE) {
+            // the current byte was successfully transmitted, go to the next one
+            case CODE_TRANSMIT_DATA_ACK:
+                attempts = 0;
+                i++;
+                break;
+            // the current byte transmittion was failed, try again
+            case CODE_TRANSMIT_DATA_NACK:
+                if (attempts <= TWI_AMOUNT_OF_TRANSMISSION_ATTEMPTS) { // else go to default
+                    attempts++;
+                    break;
                 }
-                else {
-                    twi_stop();
-                    i = 0, step = 0;
-                    exit_code = 1;
-                }
-                TWCR |= (1 << TWINT);
-            }
-            else {
-                i = 0;
-                twi_conversation_error(&exit_code, &step, status_code);
-            }
-        break;
-
-        // // transmit a byte of DATA
-        // case 3:
-        //     if (status_code == CODE_RECEIVE_DATA_ACK) {
-        //         TWDR = buf[i++];
-        //         if (i >= amount_of_bytes - 1) {
-        //             TWCR &= ~(1 << TWEA);
-        //             TWCR |= (1 << TWINT);
-        //             step++;
-        //         }
-        //         else {
-        //             i = 0;
-        //             twi_conversation_error(&exit_code, &step, status_code);
-        //         }
-        //     }
-        // break;
-
-        // // transmit the last byte of DATA
-        // case 4:
-        //     if (status_code == CODE_RECEIVE_DATA_NACK) {
-        //         TWDR = buf[i];
-        //         twi_stop();
-        //         i = 0, step = 0;
-        //         exit_code = 0;
-        //     }
-        //     else {
-        //         i = 0;
-        //         twi_conversation_error(&exit_code, &step, status_code);
-        //     }
-        // break;
+                __attribute__ ((fallthrough)); // to disable -Wimplicit-fallthrough warning
+            // all other states are treated as error
+            default:
+                attempts = 0;
+                status_code = TWSR_STATUS_CODE;
+                twi_stop();
+                return status_code; 
+                break;
+        }
     }
 
-    return exit_code;
+    // transmit STOP
+    twi_stop();
+    return TWI_SUCCESS;
 }

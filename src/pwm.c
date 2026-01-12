@@ -1,3 +1,7 @@
+#include <stdlib.h>
+
+#include "utils.h"
+#include "timings.h"
 #include "pwm.h"
 
 void pwm_assign_and_reset(Pwm* my_pwm, const uint16_t valid_new_val) {
@@ -12,13 +16,13 @@ void pwm_assign_and_reset(Pwm* my_pwm, const uint16_t valid_new_val) {
 void pwm_update(Pwm* my_pwm, const uint16_t valid_new_val, const uint16_t cur_change_delta) {
     if (cur_change_delta > PWM_STEP)
         *(my_pwm->output_compare_r) += PWM_STEP * (*(my_pwm->output_compare_r) < valid_new_val ? 1 : -1);
-    else  // this is the last update
+    else // this is the last update
         pwm_assign_and_reset(my_pwm, valid_new_val);
 }
 
 void pwm_set(Pwm* my_pwm, const uint16_t new_val) {
     const uint16_t valid_new_val = limit(new_val, 0, PWM_MAX);
-    const uint16_t cur_change_delta = abs(*(my_pwm->output_compare_r) - valid_new_val); // TODO: fix taking the absolute value of unsigned type has no effect
+    const uint16_t cur_change_delta = labs((int32_t) (*(my_pwm->output_compare_r)) - (int32_t) valid_new_val); // TODO: fix taking the absolute value of unsigned type has no effect
     uint32_t polling_period_ms = 0, time_now = 0;
 
     // set start_change_delta if it hasn't yet

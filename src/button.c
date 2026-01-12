@@ -1,3 +1,4 @@
+#include "timings.h"
 #include "button.h"
 
 bool button_is_pressed(Button *btn) {

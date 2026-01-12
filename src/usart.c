@@ -1,3 +1,9 @@
+#include <stddef.h>
+#include <string.h>
+
+#include <avr/io.h>
+#include <avr/interrupt.h>
+
 #include "usart.h"
 
 #define BAUD_RATE 9600U
