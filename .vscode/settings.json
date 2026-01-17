@@ -1,8 +1,8 @@
 {
-    "clangd.fallbackFlags": [
-        "-DF_CPU=16000000UL",
-        "-D__AVR_ATmega328P__",
-        "-I${workspaceFolder}/inc",
-        "-I/usr/avr/include"
-    ]
+	"clangd.fallbackFlags": [
+		"-DF_CPU=16000000UL",
+		"-D__AVR_ATmega328P__",
+		"-I${workspaceFolder}/inc",
+		"-I/usr/avr/include"
+	]
 }
