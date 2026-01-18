@@ -8,7 +8,7 @@ USB_PORT := /dev/ttyUSB0
 SOURCE_FILES := $(wildcard $(SRC_DIR)/*.c)
 OBJECT_FILES := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SOURCE_FILES))
 DEPENDENCY_FILES := $(OBJECT_FILES:.o=.d)
-ELF_FILE := $(BUILD_DIR)/$(PROGRAM_NAME).elf
+EXEC_FILE := $(BUILD_DIR)/$(PROGRAM_NAME)
 HEX_FILE := $(BUILD_DIR)/$(PROGRAM_NAME).hex
 
 CC := avr-gcc
@@ -33,11 +33,11 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
 -include $(DEPENDENCY_FILES)
 
 # link
-$(ELF_FILE): $(OBJECT_FILES)
+$(EXEC_FILE): $(OBJECT_FILES)
 	$(CC) $^ $(LDFLAGS) -o $@
 
-# create .hex file from .elf
-$(HEX_FILE): $(ELF_FILE)
+# create .hex file from the executable
+$(HEX_FILE): $(EXEC_FILE)
 	avr-objcopy $(OBJCOPY_FLAGS) $^ $@
 
 # flash an MCU
