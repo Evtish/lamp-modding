@@ -5,7 +5,7 @@
 
 #define PWM_MAX 1023
 
-#define PWM_CHANGE_TIME_MS 1000UL	// YOU CAN EDIT THE VALUE (the more the time the longer the animation)
+#define PWM_CHANGE_TIME_MS 5000UL	// YOU CAN EDIT THE VALUE (the more the time the longer the animation)
 #define PWM_STEP 1					// YOU CAN EDIT THE VALUE (from 1 to PWM_MAX, the less the step the smoother the animation)
 #define PWM_MIN_CHANGE_DELTA 7
 
@@ -18,4 +18,5 @@ typedef struct {
 	bool change_smoothly;
 } Pwm;
 
+uint16_t pwm_gamma_correct(const uint8_t brightness_level);
 void pwm_set(Pwm* my_pwm, const uint16_t new_val);

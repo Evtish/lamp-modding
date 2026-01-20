@@ -5,7 +5,7 @@ bool button_is_pressed(Button *btn) {
 	return !(*(btn->pin_address_r) & (1 << btn->pin));
 }
 
-void button_update(Button* btn) {
+static void button_update(Button* btn) {
 	bool btn_is_pressed = button_is_pressed(btn);
 
 	if (btn_is_pressed) {

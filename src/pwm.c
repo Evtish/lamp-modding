@@ -1,10 +1,18 @@
 #include <stdlib.h>
+#include <math.h>
 
 #include "utils.h"
 #include "timings.h"
 #include "pwm.h"
+#include "adc.h"
 
-void pwm_assign_and_reset(Pwm* my_pwm, const uint16_t valid_new_val) {
+#define GAMMA 0.45f
+
+uint16_t pwm_gamma_correct(const uint8_t brightness_level) {
+	return mapf(powf(mapf(brightness_level, 0, ADC_MAX, 0, 1), GAMMA), 0, 1, 0, PWM_MAX);
+}
+
+static void pwm_assign_and_reset(Pwm* my_pwm, const uint16_t valid_new_val) {
 	// assign
 	*(my_pwm->output_compare_r) = valid_new_val;
 
@@ -13,7 +21,7 @@ void pwm_assign_and_reset(Pwm* my_pwm, const uint16_t valid_new_val) {
 	my_pwm->change_smoothly = false;
 }
 
-void pwm_update(Pwm* my_pwm, const uint16_t valid_new_val, const uint16_t cur_change_delta) {
+static void pwm_update(Pwm* my_pwm, const uint16_t valid_new_val, const uint16_t cur_change_delta) {
 	if (cur_change_delta > PWM_STEP)
 		*(my_pwm->output_compare_r) += PWM_STEP * (*(my_pwm->output_compare_r) < valid_new_val ? 1 : -1);
 	else // this is the last update

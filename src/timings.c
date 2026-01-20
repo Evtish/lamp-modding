@@ -26,7 +26,7 @@ void timer1_init(void) {
 	TIMSK1 |= (1 << TOIE1); // enable overflow interrupt
 }
 
-uint32_t ticks_to_ms(const uint32_t ticks) {
+static uint32_t ticks_to_ms(const uint32_t ticks) {
 	return ticks * 1000UL / (F_CPU >> TIMER_PRESCALER_BITNESS);
 }
 

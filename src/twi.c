@@ -33,7 +33,7 @@
 
 // inspired by this: https://github.com/Naguissa/uRTCLib/issues/42#issue-2229505594
 // fix unsynchronized TWI bus (TWI_SUCCESS - success, TWI_FAILURE - failure), you need to manually enable TWI after calling the function
-uint8_t twi_reset(void) {
+static uint8_t twi_reset(void) {
 	TWCR &= ~(1 << TWEN); // disable TWI
 
 	DDRC &= ~((1 << SDA) | (1 << SCL)); // configure SDA and SCL as input pins
@@ -80,17 +80,17 @@ void twi_init(void) {
 	TWSR = ~((1 << TWPS1) | (1 << TWPS0)); // prescaler = 1
 }
 
-void twi_start(void) { TWCR = (1 << TWSTA) | (1 << TWINT) | (1 << TWEN); }
+static void twi_start(void) { TWCR = (1 << TWSTA) | (1 << TWINT) | (1 << TWEN); }
 
-void twi_stop(void) { TWCR = (1 << TWSTO) | (1 << TWINT) | (1 << TWEN); }
+static void twi_stop(void) { TWCR = (1 << TWSTO) | (1 << TWINT) | (1 << TWEN); }
 
-void twi_enable_ack(void) { TWCR = (1 << TWEA) | (1 << TWINT) | (1 << TWEN); }
+static void twi_enable_ack(void) { TWCR = (1 << TWEA) | (1 << TWINT) | (1 << TWEN); }
 
 // clears TWINT bit
-void twi_clear(void) { TWCR = (1 << TWINT) | (1 << TWEN); }
+static void twi_clear(void) { TWCR = (1 << TWINT) | (1 << TWEN); }
 
 // waits for TWINT bit set
-void twi_wait(void) { while (!(TWCR & (1 << TWINT))); }
+static void twi_wait(void) { while (!(TWCR & (1 << TWINT))); }
 
 /*returns the exit code:
 TWI_SUCCESS:	successfully transmitted
