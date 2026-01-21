@@ -54,7 +54,7 @@ int main(void) {
 		.passed_debounce_amount = 0
 	};
 
-	bool led_light_mode = WHITE_ON;
+	bool led_light_mode = YELLOW_ON;
 	uint16_t max_brightness_level = PWM_MAX, min_brightness_level = 0;
 
 //	uint8_t bcd_datetime[BCD_DATETIME_SIZE];
