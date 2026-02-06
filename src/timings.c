@@ -3,10 +3,10 @@
 
 #include "timings.h"
 
-volatile uint32_t timer_amount_of_overflows = 0;
+static volatile uint32_t timer1_overflow_counter = 0;
 
 ISR(TIMER1_OVF_vect) {
-	timer_amount_of_overflows++;
+	timer1_overflow_counter++;
 }
 
 void timer1_init(void) {
@@ -31,7 +31,17 @@ static uint32_t ticks_to_ms(const uint32_t ticks) {
 }
 
 uint32_t get_ticks(void) {
-	return TCNT1 + timer_amount_of_overflows * TIMER_SIZE;
+	// non-atomic access
+	uint16_t tcnt1;
+	uint32_t overflows;
+	uint8_t sreg = SREG;
+	
+	cli(); // disable interrupts
+	tcnt1 = TCNT1;
+	overflows = timer1_overflow_counter;
+	SREG = sreg; // restore interrupts
+
+	return tcnt1 + overflows * TIMER_SIZE;
 }
 
 uint32_t get_time_ms(void) {
