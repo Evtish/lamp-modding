@@ -1,7 +1,7 @@
 /* ------------------------------ HEADER FILES ------------------------------ */
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
+// #include <stdio.h>
 
 #include <avr/io.h>
 #include <avr/interrupt.h>

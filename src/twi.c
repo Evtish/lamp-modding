@@ -29,7 +29,6 @@
 #define TWI_AMOUNT_OF_RESET_CYCLES			100
 #define TWI_AMOUNT_OF_TRANSMISSION_ATTEMPTS 100
 #define TWI_DELAY_US						5
-#define TWI_FAILURE							0x01
 
 // inspired by this: https://github.com/Naguissa/uRTCLib/issues/42#issue-2229505594
 // fix unsynchronized TWI bus (TWI_SUCCESS - success, TWI_FAILURE - failure), you need to manually enable TWI after calling the function
